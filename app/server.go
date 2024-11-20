@@ -41,6 +41,6 @@ func handleConnection(conn net.Conn) {
 			fmt.Println("Failed to read")
 			fmt.Println(err)
 			}
-		conn.Write([]byte("+PONG\r\n"))
+		conn.Write([]byte("$3\r\nhey\r\n"))
 	}
 }

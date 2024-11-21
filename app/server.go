@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
+	"strings"
+	"strconv"
+
+	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -11,15 +16,12 @@ var _ = net.Listen
 var _ = os.Exit
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
-	// Uncomment this block to pass the first stage
-	//
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
-	fmt.Println("Failed to bind to port 6379")
-	os.Exit(1)
+		fmt.Println("Failed to bind to port 6379")
+		os.Exit(1)
 	}
 
 	for {
@@ -34,13 +36,32 @@ func main() {
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
-	buf := make([]byte, 10240)
-	for{
-		_, err :=conn.Read(buf)	
+	buf := make([]byte, 1024)
+	for {
+		n, err := conn.Read(buf)
 		if err != nil {
 			fmt.Println("Failed to read")
 			fmt.Println(err)
-			}
-		conn.Write([]byte("$3\r\nhey\r\n"))
+		}
+
+		reader := bufio.NewReader(strings.NewReader(string(buf[:n])))
+
+		message, err := RESP_Parser.DeserializeRESP(reader)
+
+		if err != nil {
+			fmt.Println("Error parsing RESP:", err)
+			return
+		}
+
+//		fmt.Printf("Parsed RESP: %+v\n", message.Value.([]RESP_Parser.RESPValue)[1].Value)
+		cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
+
+
+		if cmd=="PING" { 
+			conn.Write([]byte("$" + "4" + "\r\n" + "PONG" + "\r\n"))
+		} else if cmd=="ECHO" {
+			str := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
+			conn.Write([]byte("$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"))
+		}
 	}
 }

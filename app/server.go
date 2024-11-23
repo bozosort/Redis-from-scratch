@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
+	"github.com/codecrafters-io/redis-starter-go/app/Store"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -23,6 +24,8 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
+
+
 
 	for {
 		conn, err := l.Accept()
@@ -43,7 +46,9 @@ func handleConnection(conn net.Conn) {
 			fmt.Println("Failed to read")
 			fmt.Println(err)
 		}
-
+		
+		RedisStore:=Store.GetRedisStore()
+		
 		reader := bufio.NewReader(strings.NewReader(string(buf[:n])))
 
 		message, err := RESP_Parser.DeserializeRESP(reader)
@@ -56,12 +61,32 @@ func handleConnection(conn net.Conn) {
 //		fmt.Printf("Parsed RESP: %+v\n", message.Value.([]RESP_Parser.RESPValue)[1].Value)
 		cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
 
-
-		if cmd=="PING" { 
-			conn.Write([]byte("$" + "4" + "\r\n" + "PONG" + "\r\n"))
-		} else if cmd=="ECHO" {
+		switch cmd{
+		case "PING":
+			conn.Write([]byte("$4\r\nPONG\r\n"))
+		case "ECHO":
 			str := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 			conn.Write([]byte("$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"))
+		case "SET":
+			key := message.Value.([]RESP_Parser.RESPValue)[1]
+			value := message.Value.([]RESP_Parser.RESPValue)[2]
+			if len(message.Value.([]RESP_Parser.RESPValue)) == 5{
+				arg := message.Value.([]RESP_Parser.RESPValue)[3].Value.(string)
+				timestr := message.Value.([]RESP_Parser.RESPValue)[4].Value.(string)
+				time, _ := strconv.Atoi(strings.TrimSuffix(timestr, "\r\n"))
+				if arg == "$2\r\nEX\r\n"{
+					RedisStore.Set(key,value, time*1000)
+				} else if arg == "$2\r\nPX\r\n"{
+					RedisStore.Set(key,value, time)
+				}
+			} else{
+				RedisStore.Set(key, value, -1)
+			}
+			conn.Write([]byte("+OK\r\n"))
+		case "GET":
+			key := message.Value.([]RESP_Parser.RESPValue)[1]
+			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		}
+
 	}
 }

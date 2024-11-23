@@ -29,8 +29,7 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, error) {
 		return &RESPValue{"Error", strings.TrimSuffix(line, "\r\n")}, nil
 	case ':': // Integer
 		line, _ := reader.ReadString('\n')
-		num, _ := strconv.Atoi(strings.TrimSuffix(line, "\r\n"))
-		return &RESPValue{"Integer", num}, nil
+		return &RESPValue{"Integer", strings.TrimSuffix(line, "\r\n")}, nil
 	case '$': // Bulk String
 		line, _ := reader.ReadString('\n')
 		length, _ := strconv.Atoi(strings.TrimSuffix(line, "\r\n"))
@@ -54,5 +53,26 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, error) {
 		return &RESPValue{"Array", elements}, nil
 	default:
 		return nil, errors.New("unknown prefix")
+	}
+}
+
+func SerializeRESP(message RESPValue) (string){
+	str := message.Value.(string)
+
+	switch message.Type {
+		case "SimpleString":
+			return "+" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
+		case "Error":
+			return "-" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
+		case "Integer":
+			return ":" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
+		case "BulkString":
+			if message.Value == nil {
+				return "$-1\r\n"
+			} else{
+				return "$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
+			}
+		default:
+			return "$-1\r\n"
 	}
 }

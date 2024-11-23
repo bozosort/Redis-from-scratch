@@ -74,9 +74,9 @@ func handleConnection(conn net.Conn) {
 				arg := message.Value.([]RESP_Parser.RESPValue)[3].Value.(string)
 				timestr := message.Value.([]RESP_Parser.RESPValue)[4].Value.(string)
 				time, _ := strconv.Atoi(strings.TrimSuffix(timestr, "\r\n"))
-				if arg == "$2\r\nEX\r\n"{
+				if arg == "ex"{
 					RedisStore.Set(key,value, time*1000)
-				} else if arg == "$2\r\nPX\r\n"{
+				} else if arg == "px"{
 					RedisStore.Set(key,value, time)
 				}
 			} else{
@@ -85,6 +85,8 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("+OK\r\n"))
 		case "GET":
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
+			fmt.Println(RedisStore.Get(key))
+			fmt.Println("get func works")
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		}
 

@@ -3,6 +3,7 @@ package Store
 import(
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 )
@@ -34,6 +35,7 @@ func GetRedisStore() *RedisStore{
 
 func (r *RedisStore) Set(key RESP_Parser.RESPValue, value RESP_Parser.RESPValue, t int){
 	r.KVpairs[key] = RedisStoreValue{data: value, timestamp: time.Now(), timeout: t}
+	fmt.Println(r.KVpairs[key].data)
 }
 
 func (r *RedisStore) Delete(key RESP_Parser.RESPValue) (bool){
@@ -44,7 +46,7 @@ func (r *RedisStore) Delete(key RESP_Parser.RESPValue) (bool){
 func (r *RedisStore) Get(key RESP_Parser.RESPValue) (RESP_Parser.RESPValue){
 	if r.KVpairs[key].timeout > 0 && time.Since(r.KVpairs[key].timestamp).Milliseconds() > int64(r.KVpairs[key].timeout){
 		r.Delete(key)
-		return RESP_Parser.RESPValue{"BulkString","$-1\r\n"}
+		return RESP_Parser.RESPValue{"BulkString",nil}
 	}
 	
 	value := r.KVpairs[key].data

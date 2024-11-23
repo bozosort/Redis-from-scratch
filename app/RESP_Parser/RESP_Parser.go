@@ -1,6 +1,7 @@
 package RESP_Parser
 
 import (
+	"fmt"
 	"bufio"
 	"errors"
 	"strconv"
@@ -57,6 +58,19 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, error) {
 }
 
 func SerializeRESP(message RESPValue) (string){
+	fmt.Println(message)
+	fmt.Println(1)
+	if message.Type == "BulkString" {
+		fmt.Println(message)
+		fmt.Println(2)
+			if message.Value == nil {
+				fmt.Println(message)
+				fmt.Println(3)
+				return "$-1\r\n"
+		}
+	}
+	fmt.Println(message)
+	fmt.Println(4)
 	str := message.Value.(string)
 
 	switch message.Type {

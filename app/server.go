@@ -85,8 +85,6 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("+OK\r\n"))
 		case "GET":
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
-			fmt.Println(RedisStore.Get(key))
-			fmt.Println("get func works")
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		}
 

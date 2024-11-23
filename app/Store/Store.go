@@ -44,11 +44,17 @@ func (r *RedisStore) Delete(key RESP_Parser.RESPValue) (bool){
 }
 
 func (r *RedisStore) Get(key RESP_Parser.RESPValue) (RESP_Parser.RESPValue){
-	if r.KVpairs[key].timeout > 0 && time.Since(r.KVpairs[key].timestamp).Milliseconds() > int64(r.KVpairs[key].timeout){
+	
+	StoreValue,exists := r.KVpairs[key]
+
+	if exists == false{
+		return RESP_Parser.RESPValue{"BulkString",nil}
+	}
+
+	if StoreValue.timeout > 0 && time.Since(StoreValue.timestamp).Milliseconds() > int64(StoreValue.timeout){
 		r.Delete(key)
 		return RESP_Parser.RESPValue{"BulkString",nil}
 	}
 	
-	value := r.KVpairs[key].data
-	return value
+	return StoreValue.data
 }

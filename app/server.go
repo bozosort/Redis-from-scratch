@@ -98,9 +98,9 @@ func handleConnection(conn net.Conn, infoData string) {
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		case "INFO":
 			if infoData == "master"{
-				conn.Write([]byte("$93\r\nrole:master\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"))
+				conn.Write([]byte("$93\r\nrole:master\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
 			} else{
-				conn.Write([]byte("$92\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"))
+				conn.Write([]byte("$92\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
 			}
 		}
 

@@ -21,8 +21,8 @@ func main() {
 	fmt.Println("Logs from your program will appear here!")
 
 	portPtr := flag.Int("port", 6379, "an int")
+	replicaofPtr := flag.String("replicaof", "none", "a string")
 	flag.Parse()
-	fmt.Println("to bind to port " + strconv.Itoa(*portPtr))
 
 	l, err := net.Listen("tcp", "0.0.0.0:" + strconv.Itoa(*portPtr))
 	if err != nil {
@@ -30,8 +30,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("to bind to port " + strconv.Itoa(*portPtr))
-
+	var infoData
+	if *replicaofPtr == "none"{
+		infoData = "master"
+	} else{
+		infoData = "slave"
+	}
 
 	for {
 		conn, err := l.Accept()
@@ -39,7 +43,7 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		go handleConnection(conn)
+		go handleConnection(conn, infoData)
 	}
 }
 
@@ -93,7 +97,11 @@ func handleConnection(conn net.Conn) {
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		case "INFO":
-			conn.Write([]byte("$11\r\nrole:master\r\n"))
+			if infoData = "master"{
+				conn.Write([]byte("$11\r\nrole:master\r\n"))				
+			} else{
+				conn.Write([]byte("$10\r\nrole:slave\r\n"))
+			}
 		}
 
 	}

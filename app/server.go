@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"strconv"
+	"flag"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 	"github.com/codecrafters-io/redis-starter-go/app/Store"
@@ -19,12 +20,17 @@ var _ = os.Exit
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
+	portPtr := flag.Int("port", 6379, "an int")
+	flag.Parse()
+	fmt.Println("to bind to port " + strconv.Itoa(*portPtr))
+
+	l, err := net.Listen("tcp", "0.0.0.0:" + strconv.Itoa(*portPtr))
 	if err != nil {
-		fmt.Println("Failed to bind to port 6379")
+		fmt.Println("Failed to bind to port " + strconv.Itoa(*portPtr))
 		os.Exit(1)
 	}
 
+	fmt.Println("to bind to port " + strconv.Itoa(*portPtr))
 
 
 	for {
@@ -85,7 +91,6 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("+OK\r\n"))
 		case "GET":
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
-			fmt.Println(RedisStore.Get(key))
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		}
 

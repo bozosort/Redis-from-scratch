@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var infoData
+	var infoData string
 	if *replicaofPtr == "none"{
 		infoData = "master"
 	} else{
@@ -47,7 +47,7 @@ func main() {
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, infoData string) {
 	defer conn.Close()
 	buf := make([]byte, 1024)
 	for {
@@ -97,7 +97,7 @@ func handleConnection(conn net.Conn) {
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		case "INFO":
-			if infoData = "master"{
+			if infoData == "master"{
 				conn.Write([]byte("$11\r\nrole:master\r\n"))				
 			} else{
 				conn.Write([]byte("$10\r\nrole:slave\r\n"))

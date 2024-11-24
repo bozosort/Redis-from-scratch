@@ -92,6 +92,8 @@ func handleConnection(conn net.Conn) {
 		case "GET":
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
+		case "INFO":
+			conn.Write([]byte("$11\r\nrole:master\r\n"))
 		}
 
 	}

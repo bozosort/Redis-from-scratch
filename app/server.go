@@ -35,8 +35,7 @@ func main() {
 		infoData = "master"
 	} else {
 		infoData = "slave"
-		fmt.Println("flag value")
-		fmt.Println(*replicaofPtr)
+		go handleMasterConnection(*replicaofPtr)
 	}
 
 	for {
@@ -47,6 +46,17 @@ func main() {
 		}
 		go handleConnection(conn, infoData)
 	}
+}
+
+func handleMasterConnection(masterAdd string) {
+	conn, err := net.Dial("tcp", strings.ReplaceAll(masterAdd, " ", ":"))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	defer conn.Close()
+	conn.Write([]byte("*1\r\n$4\r\nPING\r\n"))
 }
 
 func handleConnection(conn net.Conn, infoData string) {

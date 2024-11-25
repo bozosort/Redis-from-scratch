@@ -35,7 +35,7 @@ func main() {
 		infoData = "master"
 	} else {
 		infoData = "slave"
-		go handleMasterConnection(*replicaofPtr)
+		go handleMasterConnection(*replicaofPtr, *portPtr)
 	}
 
 	for {
@@ -48,7 +48,7 @@ func main() {
 	}
 }
 
-func handleMasterConnection(masterAdd string) {
+func handleMasterConnection(masterAdd string, port int) {
 	conn, err := net.Dial("tcp", strings.ReplaceAll(masterAdd, " ", ":"))
 	if err != nil {
 		fmt.Println(err)
@@ -56,7 +56,36 @@ func handleMasterConnection(masterAdd string) {
 	}
 
 	defer conn.Close()
+	buf := make([]byte, 1024)
+
 	conn.Write([]byte("*1\r\n$4\r\nPING\r\n"))
+
+	n, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("Failed to read")
+		fmt.Println(err)
+	}
+	if string(buf[:n]) == "+PONG\r\n" {
+		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n" + strconv.Itoa(port) + "\r\n"))
+	} else {
+		fmt.Println("Failed to receive correct response, master server sent:")
+		fmt.Println(string(buf[:n]))
+
+	}
+
+	n, err = conn.Read(buf)
+	if err != nil {
+		fmt.Println("Failed to read")
+		fmt.Println(err)
+	}
+	if string(buf[:n]) == "+OK\r\n" {
+		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n"))
+	} else {
+		fmt.Println("Failed to receive correct response, master server sent:")
+		fmt.Println(string(buf[:n]))
+
+	}
+
 }
 
 func handleConnection(conn net.Conn, infoData string) {

@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"strconv"
-	"flag"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 	"github.com/codecrafters-io/redis-starter-go/app/Store"
@@ -24,17 +24,19 @@ func main() {
 	replicaofPtr := flag.String("replicaof", "none", "a string")
 	flag.Parse()
 
-	l, err := net.Listen("tcp", "0.0.0.0:" + strconv.Itoa(*portPtr))
+	l, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(*portPtr))
 	if err != nil {
 		fmt.Println("Failed to bind to port " + strconv.Itoa(*portPtr))
 		os.Exit(1)
 	}
 
 	var infoData string
-	if *replicaofPtr == "none"{
+	if *replicaofPtr == "none" {
 		infoData = "master"
-	} else{
+	} else {
 		infoData = "slave"
+		fmt.Println("flag value")
+		fmt.Println(*replicaofPtr)
 	}
 
 	for {
@@ -56,9 +58,9 @@ func handleConnection(conn net.Conn, infoData string) {
 			fmt.Println("Failed to read")
 			fmt.Println(err)
 		}
-		
-		RedisStore:=Store.GetRedisStore()
-		
+
+		RedisStore := Store.GetRedisStore()
+
 		reader := bufio.NewReader(strings.NewReader(string(buf[:n])))
 
 		message, err := RESP_Parser.DeserializeRESP(reader)
@@ -68,10 +70,10 @@ func handleConnection(conn net.Conn, infoData string) {
 			return
 		}
 
-//		fmt.Printf("Parsed RESP: %+v\n", message.Value.([]RESP_Parser.RESPValue)[1].Value)
+		//		fmt.Printf("Parsed RESP: %+v\n", message.Value.([]RESP_Parser.RESPValue)[1].Value)
 		cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
 
-		switch cmd{
+		switch cmd {
 		case "PING":
 			conn.Write([]byte("$4\r\nPONG\r\n"))
 		case "ECHO":
@@ -80,16 +82,16 @@ func handleConnection(conn net.Conn, infoData string) {
 		case "SET":
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
 			value := message.Value.([]RESP_Parser.RESPValue)[2]
-			if len(message.Value.([]RESP_Parser.RESPValue)) == 5{
+			if len(message.Value.([]RESP_Parser.RESPValue)) == 5 {
 				arg := message.Value.([]RESP_Parser.RESPValue)[3].Value.(string)
 				timestr := message.Value.([]RESP_Parser.RESPValue)[4].Value.(string)
 				time, _ := strconv.Atoi(strings.TrimSuffix(timestr, "\r\n"))
-				if arg == "ex"{
-					RedisStore.Set(key,value, time*1000)
-				} else if arg == "px"{
-					RedisStore.Set(key,value, time)
+				if arg == "ex" {
+					RedisStore.Set(key, value, time*1000)
+				} else if arg == "px" {
+					RedisStore.Set(key, value, time)
 				}
-			} else{
+			} else {
 				RedisStore.Set(key, value, -1)
 			}
 			conn.Write([]byte("+OK\r\n"))
@@ -97,9 +99,9 @@ func handleConnection(conn net.Conn, infoData string) {
 			key := message.Value.([]RESP_Parser.RESPValue)[1]
 			conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 		case "INFO":
-			if infoData == "master"{
+			if infoData == "master" {
 				conn.Write([]byte("$91\r\nrole:master\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
-			} else{
+			} else {
 				conn.Write([]byte("$90\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
 			}
 		}

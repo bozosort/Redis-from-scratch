@@ -156,6 +156,8 @@ func handleConnection(conn net.Conn, infoData string) {
 			} else {
 				conn.Write([]byte("$90\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
 			}
+		case "REPLCONF":
+			conn.Write([]byte("+OK\r\n"))
 		}
 
 	}

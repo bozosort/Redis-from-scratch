@@ -38,7 +38,9 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			RedisStore.Set(key, value, -1)
 		}
 		conn.Write([]byte("+OK\r\n"))
-		propogate(message, RedisInfo)
+		if RedisInfo.replicaof == "none" {
+			propogate(message, RedisInfo)
+		}
 	case "GET":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
 		conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))

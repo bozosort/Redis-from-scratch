@@ -37,8 +37,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		} else {
 			RedisStore.Set(key, value, -1)
 		}
-		conn.Write([]byte("+OK\r\n"))
 		if RedisInfo.replicaof == "none" {
+			conn.Write([]byte("+OK\r\n"))
 			propogate(message, RedisInfo)
 		}
 	case "GET":
@@ -51,8 +51,12 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			conn.Write([]byte("$90\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
 		}
 	case "REPLCONF":
-		conn.Write([]byte("+OK\r\n"))
-		RedisInfo.conns = append(RedisInfo.conns, conn)
+		if message.Value.([]RESP_Parser.RESPValue)[1].Value == "listening-port" {
+			conn.Write([]byte("+OK\r\n"))
+			RedisInfo.conns = append(RedisInfo.conns, conn)
+		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "GETACK" && message.Value.([]RESP_Parser.RESPValue)[2].Value == "*" {
+			conn.Write([]byte("+OK\r\n"))
+		}
 	case "PSYNC":
 		conn.Write([]byte("+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"))
 		emptyRDB, _ := hex.DecodeString("524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2")

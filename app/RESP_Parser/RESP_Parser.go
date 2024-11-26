@@ -1,7 +1,6 @@
 package RESP_Parser
 
 import (
-	"fmt"
 	"bufio"
 	"errors"
 	"strconv"
@@ -57,36 +56,37 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, error) {
 	}
 }
 
-func SerializeRESP(message RESPValue) (string){
-	fmt.Println(message)
-	fmt.Println(1)
-	if message.Type == "BulkString" {
-		fmt.Println(message)
-		fmt.Println(2)
-			if message.Value == nil {
-				fmt.Println(message)
-				fmt.Println(3)
-				return "$-1\r\n"
+func SerializeRESP(message RESPValue) string {
+	//	fmt.Println(message)
+	//	fmt.Println(1)
+	if message.Type == "Array" {
+		values := message.Value.([]RESPValue)
+		str := "*" + strconv.Itoa(len(values)) + "\r\n"
+		for _, val := range values {
+			str += (SerializeRESP(val))
 		}
+		//		str += "\r\n"
+		//		fmt.Println(str)
+		return str
 	}
-	fmt.Println(message)
-	fmt.Println(4)
-	str := message.Value.(string)
+
+	//	fmt.Println(message)
+	//	fmt.Println(4)
 
 	switch message.Type {
-		case "SimpleString":
-			return "+" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
-		case "Error":
-			return "-" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
-		case "Integer":
-			return ":" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
-		case "BulkString":
-			if message.Value == nil {
-				return "$-1\r\n"
-			} else{
-				return "$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
-			}
-		default:
+	case "SimpleString":
+		return "+" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+	case "Error":
+		return "-" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+	case "Integer":
+		return ":" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+	case "BulkString":
+		if message.Value == nil {
 			return "$-1\r\n"
+		} else {
+			return "$" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+		}
+	default:
+		return "$-1\r\n"
 	}
 }

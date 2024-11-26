@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -11,8 +12,13 @@ import (
 )
 
 func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
-
+	//	fmt.Println(1)
+	if message.Type != "Array" {
+		fmt.Println(message.Value)
+		return
+	}
 	cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
+	//	fmt.Println(2)
 
 	RedisStore := Store.GetRedisStore()
 
@@ -54,6 +60,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		if message.Value.([]RESP_Parser.RESPValue)[1].Value == "listening-port" {
 			conn.Write([]byte("+OK\r\n"))
 			RedisInfo.conns = append(RedisInfo.conns, conn)
+		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "capa" {
+			conn.Write([]byte("+OK\r\n"))
 		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "GETACK" && message.Value.([]RESP_Parser.RESPValue)[2].Value == "*" {
 			conn.Write([]byte("+OK\r\n"))
 		}
@@ -67,7 +75,11 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 }
 
 func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
+	str := RESP_Parser.SerializeRESP(message)
 	for _, conn := range RedisInfo.conns {
-		conn.Write([]byte(RESP_Parser.SerializeRESP(message)))
+		fmt.Println(str)
+		fmt.Println(conn)
+		fmt.Println("ale")
+		conn.Write([]byte(str))
 	}
 }

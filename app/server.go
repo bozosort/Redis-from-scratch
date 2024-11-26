@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -38,24 +39,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *replicaofPtr == "none" {
-		for {
-			conn, err := l.Accept()
-			if err != nil {
-				fmt.Println("Error accepting connection: ", err.Error())
-				os.Exit(1)
-			}
-			go handleConnection(conn, &RedisInfo)
+	if *replicaofPtr != "none" {
+		conn, err := net.Dial("tcp", strings.ReplaceAll(*replicaofPtr, " ", ":"))
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
 		}
-	} else {
-		for {
-			conn, err := net.Dial("tcp", strings.ReplaceAll(*replicaofPtr, " ", ":"))
-			if err != nil {
-				fmt.Println("Error accepting connection: ", err.Error())
-				os.Exit(1)
-			}
-			go handleConnection(conn, &RedisInfo)
+		buf := make([]byte, 1024)
+		handshake(conn, &buf, RedisInfo.port)
+		go handleConnection(conn, &RedisInfo)
+	}
+
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
 		}
+		go handleConnection(conn, &RedisInfo)
+
 	}
 }
 
@@ -63,16 +65,17 @@ func handleConnection(conn net.Conn, RedisInfo *RedisInfo) {
 	defer conn.Close()
 	buf := make([]byte, 1024)
 
-	if RedisInfo.replicaof != "none" {
-		handshake(conn, &buf, RedisInfo.port)
-	}
-
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			fmt.Println("Failed to read")
-			fmt.Println(err)
+			//			fmt.Println("Failed to read2")
+			//			fmt.Println(err)
+			if err == io.EOF {
+				return
+			}
 		}
+
+		//		fmt.Println(string((buf)[:n]))
 
 		reader := bufio.NewReader(strings.NewReader(string(buf[:n])))
 
@@ -91,40 +94,49 @@ func handshake(conn net.Conn, buf *[]byte, port string) {
 
 	n, err := conn.Read(*buf)
 	if err != nil {
-		fmt.Println("Failed to read")
-		fmt.Println(err)
+		//		fmt.Println("Failed to read1")
+		//		fmt.Println(err)
+		if err == io.EOF {
+			return
+		}
 	}
 	if string((*buf)[:n]) == "+PONG\r\n" {
 		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n" + port + "\r\n"))
 	} else {
-		fmt.Println("Failed to receive correct response, master server sent:")
-		fmt.Println(string((*buf)[:n]))
-
+		//		fmt.Println("Failed to receive correct response, master server sent:1")
+		//		fmt.Println(string((*buf)[:n]))
+		return
 	}
 
 	n, err = conn.Read(*buf)
 	if err != nil {
 		fmt.Println("Failed to read")
 		fmt.Println(err)
+		if err == io.EOF {
+			return
+		}
 	}
 	if string((*buf)[:n]) == "+OK\r\n" {
 		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n"))
 	} else {
-		fmt.Println("Failed to receive correct response, master server sent:")
+		fmt.Println("Failed to receive correct response, master server sent:2")
 		fmt.Println(string((*buf)[:n]))
-
+		return
 	}
 
 	n, err = conn.Read(*buf)
 	if err != nil {
 		fmt.Println("Failed to read")
 		fmt.Println(err)
+		if err == io.EOF {
+			return
+		}
 	}
 	if string((*buf)[:n]) == "+OK\r\n" {
 		conn.Write([]byte("*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n"))
 	} else {
-		fmt.Println("Failed to receive correct response, master server sent:")
+		fmt.Println("Failed to receive correct response, master server sent:3")
 		fmt.Println(string((*buf)[:n]))
-
+		return
 	}
 }

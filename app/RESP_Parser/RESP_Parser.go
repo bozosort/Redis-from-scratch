@@ -55,7 +55,7 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 		}
 		return &RESPValue{"Array", elements}, length + len(line) + 1, nil
 	default:
-		fmt.Println(string(prefix))
+		fmt.Println(prefix)
 		return nil, 0, errors.New("unknown prefix")
 	}
 }

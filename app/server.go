@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 )
@@ -73,6 +72,8 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			fmt.Println("Failed to read1")
 			fmt.Println(err)
 			if err == io.EOF {
+				fmt.Println((*buf)[:nbuf])
+				fmt.Println(string((*buf)[:nbuf]))
 				break
 			}
 		}
@@ -87,9 +88,16 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 		processed := 0
 		for processed < nbuf {
+			if nbuf-processed < 5 {
+				fmt.Println("nbuf - processed < 5")
+				fmt.Println((*buf)[:nbuf])
+				fmt.Println(string((*buf)[:nbuf]))
+			}
 			message, n, err := RESP_Parser.DeserializeRESP(reader)
 			if err != nil {
 				fmt.Println("Error parsing RESP1:", err)
+				fmt.Println((*buf)[:nbuf])
+				fmt.Println(string((*buf)[:nbuf]))
 				break
 			}
 			processed += n
@@ -150,7 +158,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		return
 	}
 
-	n, err = conn.Read(*buf)
+	n, err = conn.Read((*buf)[:56])
 	if err != nil {
 		fmt.Println("Failed to read5")
 		fmt.Println(err)
@@ -158,6 +166,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			return
 		}
 	}
+
 	if string((*buf)[:11]) == "+FULLRESYNC" {
 	} else {
 		fmt.Println("Failed to receive correct response, master server sent:4")
@@ -165,7 +174,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		return
 	}
 
-	time.Sleep(100000)
+	//	time.Sleep(10000)
 	n, err = conn.Read(*buf)
 	if err != nil {
 		fmt.Println("Failed to read6")

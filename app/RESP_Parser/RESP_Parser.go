@@ -16,7 +16,6 @@ type RESPValue struct {
 
 // DeserializeRESP parses a RESP message
 func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
-	//	fmt.Println("lola")
 
 	prefix, err := reader.ReadByte()
 	if err != nil {
@@ -45,7 +44,7 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 		fmt.Println("data[:length]")
 		fmt.Println(string(data[:length+2]))
 		fmt.Println(data[:length+2])
-		return &RESPValue{"BulkString", string(data[:length])}, length + len(line) + 1, nil
+		return &RESPValue{"BulkString", string(data[:length])}, length + 2 + len(line) + 1, nil
 	case '*': // Array
 		line, _ := reader.ReadString('\n')
 		length, _ := strconv.Atoi(strings.TrimSuffix(line, "\r\n"))

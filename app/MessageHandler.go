@@ -41,6 +41,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			}
 		} else {
 			RedisStore.Set(key, value, -1)
+			fmt.Println("Set in message handler printing get")
+			fmt.Println(RedisStore.Get(key))
 		}
 		if RedisInfo.replicaof == "none" {
 			conn.Write([]byte("+OK\r\n"))
@@ -48,7 +50,9 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		}
 	case "GET":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
-		fmt.Println("Ale")
+		fmt.Println("GET Command")
+		fmt.Println([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
+		fmt.Println(RedisStore.Get(key))
 		conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 	case "INFO":
 		if RedisInfo.replicaof == "none" {

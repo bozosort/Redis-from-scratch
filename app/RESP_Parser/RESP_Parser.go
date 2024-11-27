@@ -14,45 +14,47 @@ type RESPValue struct {
 }
 
 // DeserializeRESP parses a RESP message
-func DeserializeRESP(reader *bufio.Reader) (*RESPValue, error) {
+func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 	prefix, err := reader.ReadByte()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	switch prefix {
 	case '+': // Simple String
 		line, _ := reader.ReadString('\n')
-		return &RESPValue{"SimpleString", strings.TrimSuffix(line, "\r\n")}, nil
+		return &RESPValue{"SimpleString", strings.TrimSuffix(line, "\r\n")}, len(line) + 1, nil
 	case '-': // Error
 		line, _ := reader.ReadString('\n')
-		return &RESPValue{"Error", strings.TrimSuffix(line, "\r\n")}, nil
+		return &RESPValue{"Error", strings.TrimSuffix(line, "\r\n")}, len(line) + 1, nil
 	case ':': // Integer
 		line, _ := reader.ReadString('\n')
-		return &RESPValue{"Integer", strings.TrimSuffix(line, "\r\n")}, nil
+		return &RESPValue{"Integer", strings.TrimSuffix(line, "\r\n")}, len(line) + 1, nil
 	case '$': // Bulk String
 		line, _ := reader.ReadString('\n')
 		length, _ := strconv.Atoi(strings.TrimSuffix(line, "\r\n"))
 		if length == -1 {
-			return &RESPValue{"BulkString", nil}, nil // Null Bulk String
+			return &RESPValue{"BulkString", nil}, 5, nil // Null Bulk String
 		}
 		data := make([]byte, length+2)
 		reader.Read(data)
-		return &RESPValue{"BulkString", string(data[:length])}, nil
+		return &RESPValue{"BulkString", string(data[:length])}, length + 3, nil
 	case '*': // Array
 		line, _ := reader.ReadString('\n')
 		length, _ := strconv.Atoi(strings.TrimSuffix(line, "\r\n"))
 		if length == -1 {
-			return &RESPValue{"Array", nil}, nil // Null Array
+			return &RESPValue{"Array", nil}, len(line) + 1, nil // Null Array
 		}
 		var elements []RESPValue
+		length = 0
 		for i := 0; i < length; i++ {
-			elem, _ := DeserializeRESP(reader)
+			elem, n, _ := DeserializeRESP(reader)
 			elements = append(elements, *elem)
+			length += n
 		}
-		return &RESPValue{"Array", elements}, nil
+		return &RESPValue{"Array", elements}, length + len(line) + 1, nil
 	default:
-		return nil, errors.New("unknown prefix")
+		return nil, 0, errors.New("unknown prefix")
 	}
 }
 

@@ -63,7 +63,7 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "capa" {
 			conn.Write([]byte("+OK\r\n"))
 		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "GETACK" && message.Value.([]RESP_Parser.RESPValue)[2].Value == "*" {
-			conn.Write([]byte("+OK\r\n"))
+			conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n"))
 		}
 	case "PSYNC":
 		conn.Write([]byte("+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"))

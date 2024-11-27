@@ -47,7 +47,7 @@ func main() {
 		}
 		buf := make([]byte, 1024)
 		handshake(conn, &buf, RedisInfo.port)
-		go handleConnection(conn, &RedisInfo)
+		go handleConnection(&buf, conn, &RedisInfo)
 	}
 
 	for {
@@ -56,36 +56,42 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		go handleConnection(conn, &RedisInfo)
+		buf := make([]byte, 1024)
+		go handleConnection(&buf, conn, &RedisInfo)
 
 	}
 }
 
-func handleConnection(conn net.Conn, RedisInfo *RedisInfo) {
+func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	defer conn.Close()
-	buf := make([]byte, 1024)
 
 	for {
-		n, err := conn.Read(buf)
+		nbuf, err := conn.Read(*buf)
 		if err != nil {
-			//			fmt.Println("Failed to read2")
-			//			fmt.Println(err)
+			fmt.Println("Failed to read2")
+			fmt.Println(err)
 			if err == io.EOF {
 				return
 			}
 		}
 
-		//		fmt.Println(string((buf)[:n]))
+		fmt.Println(1)
+		fmt.Println(string((*buf)[:nbuf]))
+		fmt.Println(2)
 
-		reader := bufio.NewReader(strings.NewReader(string(buf[:n])))
+		reader := bufio.NewReader(strings.NewReader(string((*buf)[:nbuf])))
 
-		message, err := RESP_Parser.DeserializeRESP(reader)
-		if err != nil {
-			fmt.Println("Error parsing RESP:", err)
-			return
+		len := 0
+		for len < nbuf {
+			message, n, err := RESP_Parser.DeserializeRESP(reader)
+			if err != nil {
+				fmt.Println("Error parsing RESP:", err)
+				return
+			}
+			fmt.Println(len, nbuf)
+			MessageHandler(*message, conn, RedisInfo)
+			len += n
 		}
-
-		MessageHandler(*message, conn, RedisInfo)
 	}
 }
 

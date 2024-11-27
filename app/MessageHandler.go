@@ -17,6 +17,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		fmt.Println(message.Value)
 		return
 	}
+
+	fmt.Println(message)
 	cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
 	//	fmt.Println(2)
 

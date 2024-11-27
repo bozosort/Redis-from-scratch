@@ -88,9 +88,9 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				fmt.Println("Error parsing RESP:", err)
 				return
 			}
+			len += n
 			fmt.Println(len, nbuf)
 			MessageHandler(*message, conn, RedisInfo)
-			len += n
 		}
 	}
 }

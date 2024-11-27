@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 )
@@ -164,6 +165,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		return
 	}
 
+	time.Sleep(100000)
 	n, err = conn.Read(*buf)
 	if err != nil {
 		fmt.Println("Failed to read6")

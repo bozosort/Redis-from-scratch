@@ -43,7 +43,7 @@ func main() {
 	if *replicaofPtr != "none" {
 		conn, err := net.Dial("tcp", strings.ReplaceAll(*replicaofPtr, " ", ":"))
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
+			fmt.Println("Error accepting connection1: ", err.Error())
 			os.Exit(1)
 		}
 		buf := make([]byte, 1024)
@@ -54,7 +54,7 @@ func main() {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
+			fmt.Println("Error accepting connection2: ", err.Error())
 			os.Exit(1)
 		}
 		buf := make([]byte, 1024)
@@ -69,7 +69,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	for {
 		nbuf, err := conn.Read(*buf)
 		if err != nil {
-			fmt.Println("Failed to read2")
+			fmt.Println("Failed to read1")
 			fmt.Println(err)
 			if err == io.EOF {
 				break
@@ -88,7 +88,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		for processed < nbuf {
 			message, n, err := RESP_Parser.DeserializeRESP(reader)
 			if err != nil {
-				fmt.Println("Error parsing RESP:", err)
+				fmt.Println("Error parsing RESP1:", err)
 				break
 			}
 			processed += n
@@ -103,7 +103,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 	n, err := conn.Read(*buf)
 	if err != nil {
-		fmt.Println("Failed to read1")
+		fmt.Println("Failed to read2")
 		fmt.Println(err)
 		if err == io.EOF {
 			return
@@ -119,7 +119,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 	n, err = conn.Read(*buf)
 	if err != nil {
-		fmt.Println("Failed to read")
+		fmt.Println("Failed to read3")
 		fmt.Println(err)
 		if err == io.EOF {
 			return
@@ -135,7 +135,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 	n, err = conn.Read(*buf)
 	if err != nil {
-		fmt.Println("Failed to read")
+		fmt.Println("Failed to read4")
 		fmt.Println(err)
 		if err == io.EOF {
 			return
@@ -151,7 +151,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 	n, err = conn.Read(*buf)
 	if err != nil {
-		fmt.Println("Failed to read")
+		fmt.Println("Failed to read5")
 		fmt.Println(err)
 		if err == io.EOF {
 			return
@@ -159,14 +159,14 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	}
 	if string((*buf)[:11]) == "+FULLRESYNC" {
 	} else {
-		fmt.Println("Failed to receive correct response, master server sent:3")
+		fmt.Println("Failed to receive correct response, master server sent:4")
 		fmt.Println(string((*buf)[:n]))
 		return
 	}
 
 	n, err = conn.Read(*buf)
 	if err != nil {
-		fmt.Println("Failed to read")
+		fmt.Println("Failed to read6")
 		fmt.Println(err)
 		if err == io.EOF {
 			return
@@ -187,7 +187,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		fmt.Println(string(data[:length]))
 
 	} else {
-		fmt.Println("Failed to receive correct response, master server sent:3")
+		fmt.Println("Failed to receive correct response, master server sent:5")
 		fmt.Println(string((*buf)[:n]))
 		return
 	}
@@ -196,7 +196,7 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	for len < n {
 		message, n, err := RESP_Parser.DeserializeRESP(reader)
 		if err != nil {
-			fmt.Println("Error parsing RESP:", err)
+			fmt.Println("Error parsing RESP2:", err)
 			return
 		}
 		len += n

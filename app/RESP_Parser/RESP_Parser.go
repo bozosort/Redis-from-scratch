@@ -69,8 +69,6 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 }
 
 func SerializeRESP(message RESPValue) string {
-	//	fmt.Println(message)
-	//	fmt.Println(1)
 	if message.Type == "Array" {
 		values := message.Value.([]RESPValue)
 		str := "*" + strconv.Itoa(len(values)) + "\r\n"
@@ -78,12 +76,8 @@ func SerializeRESP(message RESPValue) string {
 			str += (SerializeRESP(val))
 		}
 		//		str += "\r\n"
-		//		fmt.Println(str)
 		return str
 	}
-
-	//	fmt.Println(message)
-	//	fmt.Println(4)
 
 	switch message.Type {
 	case "SimpleString":

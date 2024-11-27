@@ -12,15 +12,12 @@ import (
 )
 
 func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
-	//	fmt.Println(1)
 	if message.Type != "Array" {
-		//		fmt.Println(message.Value)
 		return
 	}
 
 	fmt.Println(message)
 	cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
-	//	fmt.Println(2)
 
 	RedisStore := Store.GetRedisStore()
 
@@ -80,9 +77,6 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 	str := RESP_Parser.SerializeRESP(message)
 	for _, conn := range RedisInfo.conns {
-		fmt.Println(str)
-		fmt.Println(conn)
-		fmt.Println("ale")
 		conn.Write([]byte(str))
 	}
 }

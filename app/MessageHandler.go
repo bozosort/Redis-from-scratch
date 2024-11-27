@@ -14,7 +14,7 @@ import (
 func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
 	//	fmt.Println(1)
 	if message.Type != "Array" {
-		fmt.Println(message.Value)
+		//		fmt.Println(message.Value)
 		return
 	}
 
@@ -51,6 +51,7 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		}
 	case "GET":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
+		fmt.Println("Ale")
 		conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 	case "INFO":
 		if RedisInfo.replicaof == "none" {

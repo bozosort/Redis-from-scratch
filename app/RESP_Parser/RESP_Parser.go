@@ -16,6 +16,8 @@ type RESPValue struct {
 
 // DeserializeRESP parses a RESP message
 func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
+	//	fmt.Println("lola")
+
 	prefix, err := reader.ReadByte()
 	if err != nil {
 		return nil, 0, err
@@ -37,11 +39,12 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 		if length == -1 {
 			return &RESPValue{"BulkString", nil}, 5, nil // Null Bulk String
 		}
-		data := make([]byte, length)
+		data := make([]byte, length+2)
 		reader.Read(data)
+		fmt.Println(length)
 		fmt.Println("data[:length]")
-		fmt.Println(string(data[:length]))
-		fmt.Println(data[:length])
+		fmt.Println(string(data[:length+2]))
+		fmt.Println(data[:length+2])
 		return &RESPValue{"BulkString", string(data[:length])}, length + len(line) + 1, nil
 	case '*': // Array
 		line, _ := reader.ReadString('\n')
@@ -50,13 +53,13 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 			return &RESPValue{"Array", nil}, len(line) + 1, nil // Null Array
 		}
 		var elements []RESPValue
-		length = 0
+		nbytes := 0
 		for i := 0; i < length; i++ {
 			elem, n, _ := DeserializeRESP(reader)
 			elements = append(elements, *elem)
-			length += n
+			nbytes += n
 		}
-		return &RESPValue{"Array", elements}, length + len(line) + 1, nil
+		return &RESPValue{"Array", elements}, nbytes + len(line) + 1, nil
 	default:
 		fmt.Println(prefix)
 		line, _ := reader.ReadString('*')

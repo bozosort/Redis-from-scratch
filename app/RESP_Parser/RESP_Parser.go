@@ -39,6 +39,7 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 		}
 		data := make([]byte, length)
 		reader.Read(data)
+		fmt.Println("data[:length]")
 		fmt.Println(data[:length])
 		return &RESPValue{"BulkString", string(data[:length])}, length + len(line) + 1, nil
 	case '*': // Array

@@ -88,7 +88,7 @@ func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 }
 
 func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
-	if len(RedisInfo.conns) == 1 {
+	if len(RedisInfo.conns) == 0 {
 		return 0
 	}
 
@@ -102,6 +102,7 @@ func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
 	acks := 0
 	for _, conn := range RedisInfo.conns {
 		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n"))
+		fmt.Println("Wrote to", conn)
 		go concurReadWait(&acks, conn)
 	}
 	for {

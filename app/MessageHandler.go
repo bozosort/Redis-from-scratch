@@ -116,7 +116,8 @@ func concurReadWait(acks *int, conn net.Conn) {
 	buf := make([]byte, 1024)
 	for {
 		conn.Read(buf)
-
+		fmt.Println("Concur buf", buf)
+		fmt.Println("Concur buf string", string(buf))
 		if string(buf[:37]) == "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" {
 			*acks += 1
 			return

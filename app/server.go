@@ -18,10 +18,11 @@ var _ = net.Listen
 var _ = os.Exit
 
 type RedisInfo struct {
-	port      string
-	replicaof string
-	conns     []net.Conn
-	RDB       RESP_Parser.RESPValue
+	port        string
+	replicaof   string
+	conns       []net.Conn
+	RDB         RESP_Parser.RESPValue
+	ack_counter int
 }
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 
 	flag.Parse()
 
-	RedisInfo := RedisInfo{strconv.Itoa(*portPtr), *replicaofPtr, []net.Conn{}, RESP_Parser.RESPValue{"BulkString", "$-1\r\n"}}
+	RedisInfo := RedisInfo{strconv.Itoa(*portPtr), *replicaofPtr, []net.Conn{}, RESP_Parser.RESPValue{"BulkString", "$-1\r\n"}, 0}
 
 	l, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(*portPtr))
 	if err != nil {
@@ -72,13 +73,10 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			fmt.Println("Failed to read1")
 			fmt.Println(err)
 			if err == io.EOF {
-				fmt.Println((*buf)[:nbuf])
-				fmt.Println(string((*buf)[:nbuf]))
 				break
 			}
 		}
 		if nbuf == 0 {
-			fmt.Println("nbuf==0")
 			continue // Skip if no data is received
 		}
 
@@ -88,21 +86,17 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 		processed := 0
 		for processed < nbuf {
-			if nbuf-processed < 5 {
-				fmt.Println("nbuf - processed < 5")
-				fmt.Println((*buf)[:nbuf])
-				fmt.Println(string((*buf)[:nbuf]))
-			}
 			message, n, err := RESP_Parser.DeserializeRESP(reader)
 			if err != nil {
 				fmt.Println("Error parsing RESP1:", err)
-				fmt.Println((*buf)[:nbuf])
-				fmt.Println(string((*buf)[:nbuf]))
+				//				fmt.Println((*buf)[:nbuf])
+				//				fmt.Println(string((*buf)[:nbuf]))
 				break
 			}
 			processed += n
-			fmt.Println("Processed:", processed, "of", nbuf)
+			//			fmt.Println("Processed:", processed, "of", nbuf)
 			MessageHandler(*message, conn, RedisInfo)
+			RedisInfo.ack_counter += n
 		}
 	}
 }
@@ -194,8 +188,6 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		data := make([]byte, length)
 		reader.Read(data)
 		RedisInfo.RDB = RESP_Parser.RESPValue{"BulkString", string(data[:length])}
-		fmt.Println("string(data[:length])")
-		fmt.Println(string(data[:length]))
 
 	} else {
 		fmt.Println("Failed to receive correct response, master server sent:5")
@@ -205,13 +197,14 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 	len := 0
 	for len < n {
-		message, n, err := RESP_Parser.DeserializeRESP(reader)
+		message, nRESP, err := RESP_Parser.DeserializeRESP(reader)
 		if err != nil {
 			fmt.Println("Error parsing RESP2:", err)
 			return
 		}
-		len += n
+		len += nRESP
 		MessageHandler(*message, conn, RedisInfo)
+		RedisInfo.ack_counter += nRESP
 	}
 
 }

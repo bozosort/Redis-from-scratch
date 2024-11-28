@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -16,14 +15,16 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		return
 	}
 
-	fmt.Println(message)
 	cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
 
 	RedisStore := Store.GetRedisStore()
 
 	switch cmd {
 	case "PING":
-		conn.Write([]byte("$4\r\nPONG\r\n"))
+		if RedisInfo.replicaof == "none" {
+			conn.Write([]byte("$4\r\nPONG\r\n"))
+		}
+
 	case "ECHO":
 		str := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 		conn.Write([]byte("$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"))
@@ -41,8 +42,6 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			}
 		} else {
 			RedisStore.Set(key, value, -1)
-			fmt.Println("Set in message handler printing get")
-			fmt.Println(RedisStore.Get(key))
 		}
 		if RedisInfo.replicaof == "none" {
 			conn.Write([]byte("+OK\r\n"))
@@ -50,9 +49,6 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		}
 	case "GET":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
-		fmt.Println("GET Command")
-		fmt.Println([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
-		fmt.Println(RedisStore.Get(key))
 		conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
 	case "INFO":
 		if RedisInfo.replicaof == "none" {
@@ -67,7 +63,7 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "capa" {
 			conn.Write([]byte("+OK\r\n"))
 		} else if message.Value.([]RESP_Parser.RESPValue)[1].Value == "GETACK" && message.Value.([]RESP_Parser.RESPValue)[2].Value == "*" {
-			conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n"))
+			conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" + RESP_Parser.SerializeRESP(RESP_Parser.RESPValue{"BulkString", strconv.Itoa(RedisInfo.ack_counter)})))
 		}
 	case "PSYNC":
 		conn.Write([]byte("+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"))

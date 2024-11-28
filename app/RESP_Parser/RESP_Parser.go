@@ -3,7 +3,6 @@ package RESP_Parser
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -40,10 +39,6 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 		}
 		data := make([]byte, length+2)
 		reader.Read(data)
-		fmt.Println(length)
-		fmt.Println("data[:length]")
-		fmt.Println(string(data[:length+2]))
-		fmt.Println(data[:length+2])
 		return &RESPValue{"BulkString", string(data[:length])}, length + 2 + len(line) + 1, nil
 	case '*': // Array
 		line, _ := reader.ReadString('\n')
@@ -60,9 +55,6 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 		}
 		return &RESPValue{"Array", elements}, nbytes + len(line) + 1, nil
 	default:
-		fmt.Println(prefix)
-		line, _ := reader.ReadString('*')
-		fmt.Println(line)
 		return nil, 0, errors.New("unknown prefix")
 	}
 }

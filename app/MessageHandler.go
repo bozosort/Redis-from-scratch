@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -73,6 +74,7 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		conn.Write(emptyRDB)
 	case "WAIT":
 		acks := handlewait(message, RedisInfo)
+		fmt.Println("acks:", acks)
 		conn.Write([]byte(":" + strconv.Itoa(acks) + "\r\n"))
 	}
 

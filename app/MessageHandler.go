@@ -75,7 +75,7 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 	case "WAIT":
 		acks := handlewait(message, RedisInfo)
 		fmt.Println("acks:", acks)
-		conn.Write([]byte(":" + strconv.Itoa(acks) + "\r\n"))
+		conn.Write([]byte(":" + strconv.Itoa(len(RedisInfo.conns)) + "\r\n"))
 	}
 
 }
@@ -107,6 +107,7 @@ func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
 	}
 	for {
 		if int(time.Since(now).Milliseconds()) > timeout || acks >= numreplicas {
+			fmt.Println("time since", int(time.Since(now).Milliseconds()))
 			return acks
 		}
 	}
@@ -115,9 +116,9 @@ func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
 func concurReadWait(acks *int, conn net.Conn) {
 	buf := make([]byte, 1024)
 	for {
-		conn.Read(buf)
-		fmt.Println("Concur buf", buf)
-		fmt.Println("Concur buf string", string(buf))
+		n, _ := conn.Read(buf)
+		fmt.Println("Concur buf", buf[:n])
+		fmt.Println("Concur buf string", string(buf[:n]))
 		if string(buf[:37]) == "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" {
 			*acks += 1
 			return

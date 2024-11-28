@@ -72,11 +72,11 @@ func SerializeRESP(message RESPValue) string {
 
 	switch message.Type {
 	case "SimpleString":
-		return "+" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+		return "+" + message.Value.(string) + "\r\n"
 	case "Error":
-		return "-" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+		return "-" + message.Value.(string) + "\r\n"
 	case "Integer":
-		return ":" + strconv.Itoa(len(message.Value.(string))) + "\r\n" + message.Value.(string) + "\r\n"
+		return ":" + message.Value.(string) + "\r\n"
 	case "BulkString":
 		if message.Value == nil {
 			return "$-1\r\n"

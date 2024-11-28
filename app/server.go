@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 )
@@ -18,11 +19,24 @@ var _ = net.Listen
 var _ = os.Exit
 
 type RedisInfo struct {
-	port        string
-	replicaof   string
-	conns       []net.Conn
-	RDB         RESP_Parser.RESPValue
-	ack_counter int
+	port               string
+	replicaof          string
+	conns              []net.Conn
+	RDB                RESP_Parser.RESPValue
+	ack_counter        int
+	wait_write_counter int
+}
+
+var (
+	ch   chan struct{}
+	once sync.Once
+)
+
+func GetAckChannelInstance() chan struct{} {
+	once.Do(func() {
+		ch = make(chan struct{})
+	})
+	return ch
 }
 
 func main() {
@@ -33,7 +47,7 @@ func main() {
 
 	flag.Parse()
 
-	RedisInfo := RedisInfo{strconv.Itoa(*portPtr), *replicaofPtr, []net.Conn{}, RESP_Parser.RESPValue{"BulkString", "$-1\r\n"}, 0}
+	RedisInfo := RedisInfo{strconv.Itoa(*portPtr), *replicaofPtr, []net.Conn{}, RESP_Parser.RESPValue{"BulkString", "$-1\r\n"}, 0, 0}
 
 	l, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(*portPtr))
 	if err != nil {
@@ -80,7 +94,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			continue // Skip if no data is received
 		}
 
-		fmt.Println("Received data:", string((*buf)[:nbuf]))
+		//fmt.Println("Received data:", string((*buf)[:nbuf]))
 
 		reader := bufio.NewReader(strings.NewReader(string((*buf)[:nbuf])))
 
@@ -94,7 +108,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				break
 			}
 			processed += n
-			//			fmt.Println("Processed:", processed, "of", nbuf)
+			//		fmt.Println("Processed:", processed, "of", nbuf)
 			MessageHandler(*message, conn, RedisInfo)
 			RedisInfo.ack_counter += n
 		}

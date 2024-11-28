@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/RESP_Parser"
 	"github.com/codecrafters-io/redis-starter-go/app/Store"
@@ -70,6 +71,9 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		emptyRDB, _ := hex.DecodeString("524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2")
 		conn.Write([]byte("$" + strconv.Itoa(len(emptyRDB)) + "\r\n"))
 		conn.Write(emptyRDB)
+	case "WAIT":
+		acks := handlewait(message, RedisInfo)
+		conn.Write([]byte(":" + strconv.Itoa(acks) + "\r\n"))
 	}
 
 }
@@ -78,5 +82,41 @@ func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 	str := RESP_Parser.SerializeRESP(message)
 	for _, conn := range RedisInfo.conns {
 		conn.Write([]byte(str))
+	}
+}
+
+func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
+	if len(RedisInfo.conns) == 1 {
+		return 0
+	}
+
+	numreplicas, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[1].Value.(string))
+	if numreplicas > len(RedisInfo.conns) {
+		numreplicas = len(RedisInfo.conns)
+	}
+	timeout, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[2].Value.(string))
+
+	now := time.Now()
+	acks := 0
+	for _, conn := range RedisInfo.conns {
+		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n"))
+		go concurReadWait(&acks, conn)
+	}
+	for {
+		if int(time.Since(now).Microseconds()) > timeout || acks >= numreplicas {
+			return acks
+		}
+	}
+}
+
+func concurReadWait(acks *int, conn net.Conn) {
+	buf := make([]byte, 1024)
+	for {
+		conn.Read(buf)
+
+		if string(buf[:37]) == "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" {
+			*acks += 1
+			return
+		}
 	}
 }

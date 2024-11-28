@@ -106,7 +106,7 @@ func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
 		go concurReadWait(&acks, conn)
 	}
 	for {
-		if int(time.Since(now).Microseconds()) > timeout || acks >= numreplicas {
+		if int(time.Since(now).Milliseconds()) > timeout || acks >= numreplicas {
 			return acks
 		}
 	}

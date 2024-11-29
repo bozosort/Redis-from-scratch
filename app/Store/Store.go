@@ -61,12 +61,12 @@ func (r *RedisStore) Increment(key RESP_Parser.RESPValue) RESP_Parser.RESPValue 
 	StoreValue, exists := r.KVpairs[key]
 
 	if !exists {
-		r.KVpairs[key] = RedisStoreValue{data: RESP_Parser.RESPValue{"Integer", "1"}, timestamp: time.Now(), timeout: -1}
+		r.KVpairs[key] = RedisStoreValue{data: RESP_Parser.RESPValue{"BulkString", "1"}, timestamp: time.Now(), timeout: -1}
 		return RESP_Parser.RESPValue{"Integer", "1"}
 	}
 
 	if StoreValue.timeout > 0 && time.Since(StoreValue.timestamp).Milliseconds() > int64(StoreValue.timeout) {
-		r.KVpairs[key] = RedisStoreValue{data: RESP_Parser.RESPValue{"Integer", "1"}, timestamp: time.Now(), timeout: -1}
+		r.KVpairs[key] = RedisStoreValue{data: RESP_Parser.RESPValue{"BulkString", "1"}, timestamp: time.Now(), timeout: -1}
 		return RESP_Parser.RESPValue{"Integer", "1"}
 	}
 

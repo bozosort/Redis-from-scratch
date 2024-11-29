@@ -110,6 +110,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				break
 			}
 			processed += n
+			RedisInfo.ack_counter += n
 			//		fmt.Println("Processed:", processed, "of", nbuf)
 
 			if message.Type != "Array" {
@@ -137,7 +138,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 						conn.Write([]byte(response))
 					}
 				}
-				RedisInfo.ack_counter += n
 
 			}
 

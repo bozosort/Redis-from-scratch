@@ -211,7 +211,6 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		return
 	}
 
-	//	time.Sleep(10000)
 	n, err = conn.Read(*buf)
 	if err != nil {
 		fmt.Println("Failed to read6")

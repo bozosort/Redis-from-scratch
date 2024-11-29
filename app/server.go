@@ -137,9 +137,10 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 						conn.Write([]byte(response))
 					}
 				}
+				RedisInfo.ack_counter += n
+
 			}
 
-			RedisInfo.ack_counter += n
 		}
 	}
 }

@@ -70,13 +70,12 @@ func (r *RedisStore) Increment(key RESP_Parser.RESPValue) RESP_Parser.RESPValue 
 		return RESP_Parser.RESPValue{"Integer", "1"}
 	}
 
-	if r.KVpairs[key].data.Type == "Integer" {
-
-		temp := r.KVpairs[key]
-		val, _ := strconv.Atoi(temp.data.Value.(string))
-		temp.data.Value = strconv.Itoa(val + 1)
-		r.KVpairs[key] = temp
-		return r.KVpairs[key].data
+	temp := r.KVpairs[key]
+	val, err := strconv.Atoi(temp.data.Value.(string))
+	if err != nil {
+		return RESP_Parser.RESPValue{"Error", "Value type is not integer"}
 	}
-	return RESP_Parser.RESPValue{"Error", "Value type is not integer"}
+	temp.data.Value = strconv.Itoa(val + 1)
+	r.KVpairs[key] = temp
+	return r.KVpairs[key].data
 }

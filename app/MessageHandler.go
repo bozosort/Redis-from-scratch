@@ -44,8 +44,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		}
 		RedisInfo.wait_write_counter++
 		if RedisInfo.replicaof == "none" {
-			return "+OK\r\n"
 			propogate(message, RedisInfo)
+			return "+OK\r\n"
 		} else {
 			return "Response NA"
 		}

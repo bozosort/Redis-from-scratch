@@ -82,7 +82,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	defer conn.Close()
 
 	multiMode := false
-
+	transactionQueue := &Queue{}
 	for {
 		nbuf, err := conn.Read(*buf)
 		if err != nil {
@@ -126,12 +126,29 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				if !multiMode {
 					conn.Write([]byte("-ERR EXEC without MULTI\r\n"))
 				} else {
+					if transactionQueue.length() == 0 {
+						conn.Write([]byte("*0\r\n"))
+						multiMode = false
+					} else {
+						var resArr []string
+						for i := 0; i < transactionQueue.length(); i++ {
+							msg, err := transactionQueue.Dequeue()
+							if err != nil {
+								fmt.Println(err)
+							}
+							response := MessageHandler(msg, conn, RedisInfo)
+							if response != "Response NA" {
+								resArr = append(resArr, response)
+							}
+
+						}
+					}
 					//process complete queue
 				}
 
 			default:
 				if multiMode {
-					//record in queue
+					transactionQueue.Enqueue(*message)
 				} else {
 					response := MessageHandler(*message, conn, RedisInfo)
 					if response != "Response NA" {

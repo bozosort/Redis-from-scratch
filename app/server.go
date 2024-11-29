@@ -142,13 +142,19 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 							}
 
 						}
+
+						conn.Write([]byte("*" + strconv.Itoa(len(resArr)) + "\r\n"))
+						for i := 0; i < len(resArr); i++ {
+							conn.Write([]byte(resArr[i]))
+						}
+						multiMode = false
 					}
-					//process complete queue
 				}
 
 			default:
 				if multiMode {
 					transactionQueue.Enqueue(*message)
+					conn.Write([]byte("+QUEUED\r\n"))
 				} else {
 					response := MessageHandler(*message, conn, RedisInfo)
 					if response != "Response NA" {

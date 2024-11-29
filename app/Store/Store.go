@@ -73,7 +73,7 @@ func (r *RedisStore) Increment(key RESP_Parser.RESPValue) RESP_Parser.RESPValue 
 	temp := r.KVpairs[key]
 	val, err := strconv.Atoi(temp.data.Value.(string))
 	if err != nil {
-		return RESP_Parser.RESPValue{"Error", "Value type is not integer"}
+		return RESP_Parser.RESPValue{"Error", "ERR value is not an integer or out of range"}
 	}
 	temp.data.Value = strconv.Itoa(val + 1)
 	r.KVpairs[key] = temp

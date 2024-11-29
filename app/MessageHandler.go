@@ -68,8 +68,6 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		conn.Write([]byte("$" + strconv.Itoa(len(emptyRDB)) + "\r\n"))
 		conn.Write(emptyRDB)
 	case "WAIT":
-		//		acks := handlewait(message, RedisInfo)
-		//conn.Write([]byte(":" + strconv.Itoa(acks) + "\r\n"))
 		if RedisInfo.wait_write_counter == 0 {
 			conn.Write([]byte(":" + strconv.Itoa(len(RedisInfo.conns)) + "\r\n"))
 			return
@@ -88,8 +86,6 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			select {
 			case <-ackCh:
 				acknowledged++
-				//				fmt.Println("acknowledged value", acknowledged)
-				//				fmt.Println("numReplicas value", numReplicas)
 				if acknowledged >= numReplicas {
 					conn.Write([]byte(":" + strconv.Itoa(acknowledged) + "\r\n"))
 					fmt.Println("ackCh success")
@@ -103,6 +99,15 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 				return
 			}
 		}
+	case "INCR":
+		key := message.Value.([]RESP_Parser.RESPValue)[1]
+		newVal := RedisStore.Increment(key)
+
+		if RedisInfo.replicaof == "none" {
+			conn.Write([]byte(RESP_Parser.SerializeRESP(newVal)))
+			propogate(message, RedisInfo)
+		}
+		RedisInfo.wait_write_counter++
 	}
 
 }
@@ -111,58 +116,6 @@ func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 	str := RESP_Parser.SerializeRESP(message)
 	for _, conn := range RedisInfo.conns {
 		conn.Write([]byte(str))
-	}
-}
-
-func handlewait(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) int {
-	if len(RedisInfo.conns) == 0 {
-		return 0
-	}
-
-	numreplicas, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[1].Value.(string))
-	if numreplicas > len(RedisInfo.conns) {
-		numreplicas = len(RedisInfo.conns)
-	}
-	timeout, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[2].Value.(string))
-
-	acks := 0
-	for _, conn := range RedisInfo.conns {
-		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n"))
-		fmt.Println("Wrote to", conn)
-		go concurReadWait(&acks, conn)
-	}
-	now := time.Now()
-	for {
-		if acks >= numreplicas {
-			fmt.Println("time since", int(time.Since(now).Milliseconds()), timeout)
-			return acks
-		}
-	}
-}
-
-func concurReadWait(acks *int, conn net.Conn) {
-	fmt.Println("waiting for", conn)
-
-	buf := make([]byte, 1024)
-	for {
-
-		//		n, _ := conn.Read(buf)
-
-		_, err := conn.Read(buf)
-		if err == nil {
-			fmt.Println("got response from replica", conn)
-			*acks += 1
-			return
-
-		} else {
-			fmt.Println("error from replica", conn, " => ", err.Error())
-			return
-		}
-		//fmt.Println("Concur buf", buf[:n])
-		//		fmt.Println("Concur buf string", string(buf[:n]))
-		//		if string(buf[:37]) == "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" {
-		//			*acks += 1
-		//			return
 	}
 }
 

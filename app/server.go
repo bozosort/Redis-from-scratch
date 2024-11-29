@@ -140,6 +140,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 							if response != "Response NA" {
 								resArr = append(resArr, response)
 							}
+							fmt.Println("Response in EXEC:", response)
 
 						}
 

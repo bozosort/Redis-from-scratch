@@ -108,6 +108,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			propogate(message, RedisInfo)
 		}
 		RedisInfo.wait_write_counter++
+	case "MULTI":
+		conn.Write([]byte("+OK\r\n"))
 	}
 
 }

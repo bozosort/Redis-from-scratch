@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
@@ -12,11 +11,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/Store"
 )
 
-func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
-	if message.Type != "Array" {
-		return
-	}
-
+func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
 	cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
 
 	RedisStore := Store.GetRedisStore()
@@ -25,12 +20,12 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 	switch cmd {
 	case "PING":
 		if RedisInfo.replicaof == "none" {
-			conn.Write([]byte("$4\r\nPONG\r\n"))
+			return "$4\r\nPONG\r\n"
 		}
 
 	case "ECHO":
 		str := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
-		conn.Write([]byte("$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"))
+		return "$" + strconv.Itoa(len(str)) + "\r\n" + str + "\r\n"
 	case "SET":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
 		value := message.Value.([]RESP_Parser.RESPValue)[2]
@@ -46,31 +41,30 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		} else {
 			RedisStore.Set(key, value, -1)
 		}
-		if RedisInfo.replicaof == "none" {
-			conn.Write([]byte("+OK\r\n"))
-			propogate(message, RedisInfo)
-		}
 		RedisInfo.wait_write_counter++
+		if RedisInfo.replicaof == "none" {
+			return "+OK\r\n"
+			propogate(message, RedisInfo)
+		} else {
+			return "Response NA"
+		}
 	case "GET":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
-		conn.Write([]byte(RESP_Parser.SerializeRESP(RedisStore.Get(key))))
+		return RESP_Parser.SerializeRESP(RedisStore.Get(key))
 	case "INFO":
 		if RedisInfo.replicaof == "none" {
-			conn.Write([]byte("$91\r\nrole:master\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
+			return "$91\r\nrole:master\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"
 		} else {
-			conn.Write([]byte("$90\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"))
+			return "$90\r\nrole:slave\r\nmaster_repl_offset:0\r\nmaster_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n\r\n"
 		}
 	case "REPLCONF":
-		handleREPLCONF(message, conn, RedisInfo)
+		return handleREPLCONF(message, conn, RedisInfo)
 	case "PSYNC":
-		conn.Write([]byte("+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n"))
-		emptyRDB, _ := hex.DecodeString("524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2")
-		conn.Write([]byte("$" + strconv.Itoa(len(emptyRDB)) + "\r\n"))
-		conn.Write(emptyRDB)
+		emptyRDB := "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2"
+		return "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n" + "$" + strconv.Itoa(len(emptyRDB)) + "\r\n" + emptyRDB
 	case "WAIT":
 		if RedisInfo.wait_write_counter == 0 {
-			conn.Write([]byte(":" + strconv.Itoa(len(RedisInfo.conns)) + "\r\n"))
-			return
+			return ":" + strconv.Itoa(len(RedisInfo.conns)) + "\r\n"
 		}
 		go func(conns []net.Conn) {
 			for _, conn := range conns {
@@ -87,31 +81,29 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			case <-ackCh:
 				acknowledged++
 				if acknowledged >= numReplicas {
-					conn.Write([]byte(":" + strconv.Itoa(acknowledged) + "\r\n"))
 					fmt.Println("ackCh success")
 					RedisInfo.wait_write_counter = 0
-					return
+					return ":" + strconv.Itoa(acknowledged) + "\r\n"
 				}
 			case <-timeoutCh:
 				fmt.Println("Trigerred timeoutCh")
-				conn.Write([]byte(":" + strconv.Itoa(acknowledged) + "\r\n"))
 				RedisInfo.wait_write_counter = 0
-				return
+				return ":" + strconv.Itoa(acknowledged) + "\r\n"
 			}
 		}
 	case "INCR":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
 		newVal := RedisStore.Increment(key)
+		RedisInfo.wait_write_counter++
 
 		if RedisInfo.replicaof == "none" {
-			conn.Write([]byte(RESP_Parser.SerializeRESP(newVal)))
 			propogate(message, RedisInfo)
+			return RESP_Parser.SerializeRESP(newVal)
 		}
-		RedisInfo.wait_write_counter++
-	case "MULTI":
-		conn.Write([]byte("+OK\r\n"))
-	}
+		return "Response NA"
 
+	}
+	return "Response NA"
 }
 
 func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
@@ -121,19 +113,21 @@ func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 	}
 }
 
-func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
+func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
 	switch message.Value.([]RESP_Parser.RESPValue)[1].Value {
 	case "ACK":
 		//		fmt.Println("Before trigerring ackCh")
 		ackCh := GetAckChannelInstance()
 		ackCh <- struct{}{}
+		return "Response NA"
 		//		fmt.Println("After trigerring ackCh")
 	case "listening-port":
-		conn.Write([]byte("+OK\r\n"))
 		RedisInfo.conns = append(RedisInfo.conns, conn)
+		return "+OK\r\n"
 	case "capa":
-		conn.Write([]byte("+OK\r\n"))
+		return "+OK\r\n"
 	case "GETACK":
-		conn.Write([]byte("*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" + RESP_Parser.SerializeRESP(RESP_Parser.RESPValue{"BulkString", strconv.Itoa(RedisInfo.ack_counter)})))
+		return "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" + RESP_Parser.SerializeRESP(RESP_Parser.RESPValue{"BulkString", strconv.Itoa(RedisInfo.ack_counter)})
 	}
+	return "Response NA"
 }

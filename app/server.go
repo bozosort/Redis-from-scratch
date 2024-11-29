@@ -81,6 +81,8 @@ func main() {
 func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	defer conn.Close()
 
+	multiMode := false
+
 	for {
 		nbuf, err := conn.Read(*buf)
 		if err != nil {
@@ -109,7 +111,34 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			}
 			processed += n
 			//		fmt.Println("Processed:", processed, "of", nbuf)
-			MessageHandler(*message, conn, RedisInfo)
+
+			if message.Type != "Array" {
+				continue
+			}
+
+			switch message.Value.([]RESP_Parser.RESPValue)[0].Value.(string) {
+			case "MULTI":
+				multiMode = true
+				conn.Write([]byte("+OK\r\n"))
+
+			case "EXEC":
+				if !multiMode {
+					conn.Write([]byte("-ERR EXEC without MULTI\r\n"))
+				} else {
+					//process complete queue
+				}
+
+			default:
+				if multiMode {
+					//record in queue
+				} else {
+					response := MessageHandler(*message, conn, RedisInfo)
+					if response != "Response NA" {
+						conn.Write([]byte(response))
+					}
+				}
+			}
+
 			RedisInfo.ack_counter += n
 		}
 	}

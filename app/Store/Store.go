@@ -77,5 +77,5 @@ func (r *RedisStore) Increment(key RESP_Parser.RESPValue) RESP_Parser.RESPValue 
 	}
 	temp.data.Value = strconv.Itoa(val + 1)
 	r.KVpairs[key] = temp
-	return r.KVpairs[key].data
+	return RESP_Parser.RESPValue{"Integer", r.KVpairs[key].data.Value}
 }

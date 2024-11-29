@@ -245,8 +245,10 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			return
 		}
 		len += nRESP
-		MessageHandler(*message, conn, RedisInfo)
-		RedisInfo.ack_counter += nRESP
-	}
 
+		response := MessageHandler(*message, conn, RedisInfo)
+		if response != "Response NA" {
+			conn.Write([]byte(response))
+		}
+	}
 }

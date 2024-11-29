@@ -3,6 +3,7 @@ package RESP_Parser
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -15,9 +16,9 @@ type RESPValue struct {
 
 // DeserializeRESP parses a RESP message
 func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
-
 	prefix, err := reader.ReadByte()
 	if err != nil {
+		fmt.Println("Error in reader.ReadByte()")
 		return nil, 0, err
 	}
 

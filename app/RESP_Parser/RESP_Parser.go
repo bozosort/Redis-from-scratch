@@ -61,7 +61,7 @@ func DeserializeRESP(reader *bufio.Reader) (*RESPValue, int, error) {
 }
 
 func SerializeRESP(message RESPValue) string {
-	if message.Type == "Array" {
+	if message.Type == "Array" || message.Type == "stream" {
 		values := message.Value.([]RESPValue)
 		str := "*" + strconv.Itoa(len(values)) + "\r\n"
 		for _, val := range values {

@@ -154,8 +154,8 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 
 	RedisStore := Store.GetRedisStore()
 	streamData := RedisStore.Get(key)
-
-	if validID(id, streamData) {
+	validIDRes := validID(id, streamData)
+	if validIDRes == "Valid" {
 		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
 		entry := RESP_Parser.RESPValue{"Array", [2]RESP_Parser.RESPValue{id, KVs}}
 
@@ -168,22 +168,22 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 		}
 
 	} else {
-		return "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+		return validIDRes
 	}
 }
 
-func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
+func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) string {
 
 	strs := strings.Split(id.Value.(string), "-")
 	var ID [2]int
 	ID[0], _ = strconv.Atoi(strs[0])
 	ID[1], _ = strconv.Atoi(strs[1])
 	if ID[0] < 0 || ID[1] < 0 || (ID[0] == 0 && ID[1] == 0) {
-		return false
+		return "-ERR The ID specified in XADD must be greater than 0-0\r\n"
 	}
 
 	if streamData.Value == nil {
-		return true
+		return "Valid"
 	} else {
 		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))-1]
 		lastIDstr := lastEntry.Value.([2]RESP_Parser.RESPValue)[0].Value.(string)
@@ -192,9 +192,9 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
 		lastID[0], _ = strconv.Atoi(strs[0])
 		lastID[1], _ = strconv.Atoi(strs[1])
 		if ID[0] < lastID[0] || (ID[0] == lastID[0] && ID[1] <= lastID[1]) {
-			return false
+			return "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
 		} else {
-			return true
+			return "Valid"
 		}
 	}
 }

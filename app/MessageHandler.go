@@ -157,10 +157,10 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 		RedisStore := Store.GetRedisStore()
 		streamData := RedisStore.Get(key)
 		if streamData.Value == nil {
-			RedisStore.Set(key, RESP_Parser.RESPValue{"Stream", []RESP_Parser.RESPValue{entry}}, -1)
+			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
 			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
 		} else {
-			RedisStore.Set(key, RESP_Parser.RESPValue{"Stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
+			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
 			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
 		}
 

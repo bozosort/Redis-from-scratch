@@ -109,12 +109,11 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 	case "TYPE":
 		key := message.Value.([]RESP_Parser.RESPValue)[1]
 		value := RedisStore.Get(key)
-		switch value.Value {
-		case nil:
+		if value.Value == nil {
 			return "+none\r\n"
-		case "BulkString":
+		} else if value.Value == "BulkString" {
 			return "+string\r\n"
-		default:
+		} else {
 			return "+" + value.Type + "\r\n"
 		}
 	}

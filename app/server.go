@@ -96,8 +96,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			continue // Skip if no data is received
 		}
 
-		fmt.Println("Received data:", string((*buf)[:nbuf]))
-		fmt.Println("ack_counter:", RedisInfo.ack_counter)
+		//		fmt.Println("Received data:", string((*buf)[:nbuf]))
 
 		reader := bufio.NewReader(strings.NewReader(string((*buf)[:nbuf])))
 
@@ -153,6 +152,15 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 					}
 				}
 
+			case "DISCARD":
+				if !multiMode {
+					conn.Write([]byte("-ERR DISCARD without MULTI\r\n"))
+				} else {
+					transactionQueue = &Queue{}
+					multiMode = false
+					conn.Write([]byte("+OK\r\n"))
+				}
+
 			default:
 				if multiMode {
 					transactionQueue.Enqueue(*message)
@@ -165,10 +173,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				}
 
 			}
-			fmt.Println("Message:", message)
 			RedisInfo.ack_counter += n
-			fmt.Println("ack:", RedisInfo.ack_counter, " n:", n)
-
 		}
 	}
 }

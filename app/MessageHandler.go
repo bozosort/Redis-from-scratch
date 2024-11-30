@@ -186,7 +186,7 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
 		return true
 	} else {
 		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))-1]
-		lastIDstr := lastEntry.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
+		lastIDstr := lastEntry.Value.([2]RESP_Parser.RESPValue)[0].Value.(string)
 		strs = strings.Split(lastIDstr, "-")
 		var lastID [2]int
 		lastID[0], _ = strconv.Atoi(strs[0])

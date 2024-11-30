@@ -150,51 +150,67 @@ func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 
 func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
 	key := message.Value.([]RESP_Parser.RESPValue)[1]
-	id := message.Value.([]RESP_Parser.RESPValue)[2]
+	cmdID := message.Value.([]RESP_Parser.RESPValue)[2]
 
 	RedisStore := Store.GetRedisStore()
 	streamData := RedisStore.Get(key)
-	validIDRes := validID(id, streamData)
-	if validIDRes == "Valid" {
+	IDres, valid := validID(cmdID, streamData)
+	if valid {
 		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
-		entry := RESP_Parser.RESPValue{"Array", [2]RESP_Parser.RESPValue{id, KVs}}
+		entry := RESP_Parser.RESPValue{"Array", [2]RESP_Parser.RESPValue{RESP_Parser.RESPValue{"BulkString", IDres}, KVs}}
 
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
-			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
+			return "$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"
 		} else {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
-			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
+			return "$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"
 		}
 
 	} else {
-		return validIDRes
+		return IDres
 	}
 }
 
-func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) string {
+func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string, bool) {
 
-	strs := strings.Split(id.Value.(string), "-")
-	var ID [2]int
-	ID[0], _ = strconv.Atoi(strs[0])
-	ID[1], _ = strconv.Atoi(strs[1])
-	if ID[0] < 0 || ID[1] < 0 || (ID[0] == 0 && ID[1] == 0) {
-		return "-ERR The ID specified in XADD must be greater than 0-0\r\n"
-	}
-
+	var comparisonID [2]int
 	if streamData.Value == nil {
-		return "Valid"
+		//Since no value is set for stream, comparisonID is set to "identity" value
+		comparisonID[0] = 0
+		comparisonID[1] = 0
 	} else {
 		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))-1]
 		lastIDstr := lastEntry.Value.([2]RESP_Parser.RESPValue)[0].Value.(string)
-		strs = strings.Split(lastIDstr, "-")
-		var lastID [2]int
-		lastID[0], _ = strconv.Atoi(strs[0])
-		lastID[1], _ = strconv.Atoi(strs[1])
-		if ID[0] < lastID[0] || (ID[0] == lastID[0] && ID[1] <= lastID[1]) {
-			return "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+		strsLast := strings.Split(lastIDstr, "-")
+		comparisonID[0], _ = strconv.Atoi(strsLast[0])
+		comparisonID[1], _ = strconv.Atoi(strsLast[1])
+	}
+
+	strs := strings.Split(id.Value.(string), "-")
+	var ID [2]int
+
+	if strs[0] == "*" {
+		ID[0] = int(time.Now().UnixMilli())
+	} else {
+		ID[0], _ = strconv.Atoi(strs[0])
+	}
+	if strs[1] == "*" {
+		if ID[0] > comparisonID[0] {
+			ID[1] = 0
 		} else {
-			return "Valid"
+			ID[1] = comparisonID[1] + 1
 		}
+		return strconv.Itoa(ID[0]) + "-" + strconv.Itoa(ID[1]), true
+	} else {
+		ID[1], _ = strconv.Atoi(strs[1])
+	}
+
+	if ID[0] < 0 || ID[1] < 0 || (ID[0] == 0 && ID[1] == 0) {
+		return "-ERR The ID specified in XADD must be greater than 0-0\r\n", false
+	} else if ID[0] < comparisonID[0] || (ID[0] == comparisonID[0] && ID[1] <= comparisonID[1]) {
+		return "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n", false
+	} else {
+		return strconv.Itoa(ID[0]) + "-" + strconv.Itoa(ID[1]), true
 	}
 }

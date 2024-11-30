@@ -106,6 +106,13 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		}
 		return "Response NA"
 
+	case "TYPE":
+		key := message.Value.([]RESP_Parser.RESPValue)[1]
+		value := RedisStore.Get(key)
+		if value.Value != nil {
+			return "+" + value.Type + "\r\n"
+		}
+		return "+none\r\n"
 	}
 	return "Response NA"
 }

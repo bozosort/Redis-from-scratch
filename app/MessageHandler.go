@@ -100,6 +100,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 
 		if RedisInfo.replicaof == "none" {
 			propogate(message, RedisInfo)
+			fmt.Println("INCR Master:", RESP_Parser.SerializeRESP(newVal))
+
 			return RESP_Parser.SerializeRESP(newVal)
 		}
 		return "Response NA"

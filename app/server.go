@@ -131,7 +131,9 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 						multiMode = false
 					} else {
 						var resArr []string
-						for i := 0; i < transactionQueue.length(); i++ {
+						fmt.Println("tq length", transactionQueue.length())
+						tqLen := transactionQueue.length()
+						for i := 0; i < tqLen; i++ {
 							msg, err := transactionQueue.Dequeue()
 							if err != nil {
 								fmt.Println(err)
@@ -140,7 +142,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 							if response != "Response NA" {
 								resArr = append(resArr, response)
 							}
-							fmt.Println("Response in EXEC:", response)
 
 						}
 

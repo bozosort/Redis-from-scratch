@@ -175,7 +175,7 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
 
 	strs := strings.Split(id.Value.(string), "-")
-	var ID []int
+	var ID [2]int
 	ID[0], _ = strconv.Atoi(strs[0])
 	ID[1], _ = strconv.Atoi(strs[1])
 	if ID[0] < 0 || ID[1] < 0 || (ID[0] == 0 && ID[1] == 0) {
@@ -188,7 +188,7 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
 		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))]
 		lastIDstr := lastEntry.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 		strs = strings.Split(lastIDstr, "-")
-		var lastID []int
+		var lastID [2]int
 		lastID[0], _ = strconv.Atoi(strs[0])
 		lastID[1], _ = strconv.Atoi(strs[1])
 		if ID[0] < lastID[0] {

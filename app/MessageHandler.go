@@ -111,11 +111,11 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		value := RedisStore.Get(key)
 		switch value.Value {
 		case nil:
-			return "+" + value.Type + "\r\n"
+			return "+none\r\n"
 		case "BulkString":
 			return "+string\r\n"
 		default:
-			return "+none\r\n"
+			return "+" + value.Type + "\r\n"
 		}
 	}
 	return "Response NA"

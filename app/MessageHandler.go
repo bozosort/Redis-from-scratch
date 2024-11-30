@@ -191,9 +191,7 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
 		var lastID [2]int
 		lastID[0], _ = strconv.Atoi(strs[0])
 		lastID[1], _ = strconv.Atoi(strs[1])
-		if ID[0] <= lastID[0] {
-			return false
-		} else if ID[1] <= lastID[1] {
+		if ID[0] < lastID[0] || (ID[0] == lastID[0] && ID[1] <= lastID[1]) {
 			return false
 		} else {
 			return true

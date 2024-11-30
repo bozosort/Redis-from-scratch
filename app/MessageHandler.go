@@ -111,7 +111,7 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		value := RedisStore.Get(key)
 		if value.Value == nil {
 			return "+none\r\n"
-		} else if value.Value == "BulkString" {
+		} else if value.Type == "BulkString" {
 			return "+string\r\n"
 		} else {
 			return "+" + value.Type + "\r\n"

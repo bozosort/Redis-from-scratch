@@ -151,11 +151,14 @@ func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
 	key := message.Value.([]RESP_Parser.RESPValue)[1]
 	id := message.Value.([]RESP_Parser.RESPValue)[2]
-	if validID(key, id) {
+
+	RedisStore := Store.GetRedisStore()
+	streamData := RedisStore.Get(key)
+
+	if validID(id, streamData) {
 		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
 		entry := RESP_Parser.RESPValue{"Array", [2]RESP_Parser.RESPValue{id, KVs}}
-		RedisStore := Store.GetRedisStore()
-		streamData := RedisStore.Get(key)
+
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
 			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
@@ -169,6 +172,29 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 	}
 }
 
-func validID(key RESP_Parser.RESPValue, id RESP_Parser.RESPValue) bool {
-	return true
+func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
+
+	strs := strings.Split(id.Value.(string), "-")
+	var ID []int
+	ID[0], _ = strconv.Atoi(strs[0])
+	ID[1], _ = strconv.Atoi(strs[1])
+	if ID[0] < 0 || ID[1] < 0 || (ID[0] == 0 && ID[1] == 0) {
+		return false
+	}
+
+	if streamData.Value == nil {
+		return true
+	} else {
+		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))]
+		lastIDstr := lastEntry.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
+		strs = strings.Split(lastIDstr, "-")
+		var lastID []int
+		lastID[0], _ = strconv.Atoi(strs[0])
+		lastID[1], _ = strconv.Atoi(strs[1])
+		if ID[0] < lastID[0] {
+			return false
+		} else {
+			return true
+		}
+	}
 }

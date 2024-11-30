@@ -185,7 +185,7 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) bool {
 	if streamData.Value == nil {
 		return true
 	} else {
-		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))]
+		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))-1]
 		lastIDstr := lastEntry.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 		strs = strings.Split(lastIDstr, "-")
 		var lastID [2]int

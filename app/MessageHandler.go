@@ -116,6 +116,8 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		} else {
 			return "+" + value.Type + "\r\n"
 		}
+	case "XADD":
+		return handleXADD(message, conn, RedisInfo)
 	}
 	return "Response NA"
 }
@@ -144,4 +146,29 @@ func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		return "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n" + RESP_Parser.SerializeRESP(RESP_Parser.RESPValue{"BulkString", strconv.Itoa(RedisInfo.ack_counter)})
 	}
 	return "Response NA"
+}
+
+func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
+	key := message.Value.([]RESP_Parser.RESPValue)[1]
+	id := message.Value.([]RESP_Parser.RESPValue)[2]
+	if validID(key, id) {
+		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
+		entry := RESP_Parser.RESPValue{"Array", [2]RESP_Parser.RESPValue{id, KVs}}
+		RedisStore := Store.GetRedisStore()
+		streamData := RedisStore.Get(key)
+		if streamData.Value == nil {
+			RedisStore.Set(key, RESP_Parser.RESPValue{"Stream", []RESP_Parser.RESPValue{entry}}, -1)
+			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
+		} else {
+			RedisStore.Set(key, RESP_Parser.RESPValue{"Stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
+			return "$" + strconv.Itoa(len(id.Value.(string))) + "\r\n" + id.Value.(string) + "\r\n"
+		}
+
+	} else {
+		return "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+	}
+}
+
+func validID(key RESP_Parser.RESPValue, id RESP_Parser.RESPValue) bool {
+	return true
 }

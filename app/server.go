@@ -97,6 +97,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		}
 
 		fmt.Println("Received data:", string((*buf)[:nbuf]))
+		fmt.Println("ack_counter:", RedisInfo.ack_counter)
 
 		reader := bufio.NewReader(strings.NewReader(string((*buf)[:nbuf])))
 
@@ -110,7 +111,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				break
 			}
 			processed += n
-			RedisInfo.ack_counter += n
 			//		fmt.Println("Processed:", processed, "of", nbuf)
 
 			if message.Type != "Array" {
@@ -165,6 +165,9 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				}
 
 			}
+			fmt.Println("Message:", message)
+			RedisInfo.ack_counter += n
+			fmt.Println("ack:", RedisInfo.ack_counter, " n:", n)
 
 		}
 	}
@@ -276,5 +279,6 @@ func handshake(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 		if response != "Response NA" {
 			conn.Write([]byte(response))
 		}
+		RedisInfo.ack_counter += nRESP
 	}
 }

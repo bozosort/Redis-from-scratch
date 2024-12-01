@@ -192,10 +192,14 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string
 
 	if strs[0] == "*" {
 		ID[0] = int(time.Now().UnixMilli())
-	} else {
+		if ID[0] > comparisonID[0] {
+			ID[1] = 0
+		} else {
+			ID[1] = comparisonID[1] + 1
+		}
+		return strconv.Itoa(ID[0]) + "-" + strconv.Itoa(ID[1]), true
+	} else if strs[1] == "*" {
 		ID[0], _ = strconv.Atoi(strs[0])
-	}
-	if strs[1] == "*" {
 		if ID[0] > comparisonID[0] {
 			ID[1] = 0
 		} else {
@@ -203,6 +207,7 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string
 		}
 		return strconv.Itoa(ID[0]) + "-" + strconv.Itoa(ID[1]), true
 	} else {
+		ID[0], _ = strconv.Atoi(strs[0])
 		ID[1], _ = strconv.Atoi(strs[1])
 	}
 

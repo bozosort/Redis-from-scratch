@@ -168,8 +168,9 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 				} else {
 					response := MessageHandler(*message, conn, RedisInfo)
 					if response != "Response NA" {
-						//						fmt.Println("response", response)
+						fmt.Println("response", response)
 						conn.Write([]byte(response))
+						fmt.Println("response")
 					}
 				}
 

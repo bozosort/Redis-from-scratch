@@ -253,19 +253,23 @@ func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 	} else if id == "+" {
 		return len(slice) - 1
 	} else if len(slice) == 1 {
-		return 0
+		return -1 // If not found,send the previous index
 	} else {
 		mid := len(slice) / 2
 		//		fmt.Println(mid, len(slice))
 		cmpr := compareID(id, slice[mid].Value.([]RESP_Parser.RESPValue)[0].Value.(string))
 		if cmpr == 1 {
-			//			fmt.Println("len(slice)/2 + searchIndex(id, slice[mid:])")
+			fmt.Println("mid + searchIndex(id, slice[mid:])", mid+searchIndex(id, slice[mid:]))
 			return mid + searchIndex(id, slice[mid:])
 		} else if cmpr == -1 {
-			//			fmt.Println("len(slice)/2 - searchIndex(id, slice[:mid])")
+			fmt.Println("mid - searchIndex(id, slice[:mid])", mid-searchIndex(id, slice[:mid]))
+			ret := searchIndex(id, slice[:mid])
+			if ret == -1 {
+				return mid - 1
+			}
 			return mid - searchIndex(id, slice[:mid])
 		} else {
-			//			fmt.Println("len(slice) / 2", mid)
+			fmt.Println("mid", mid)
 			return mid
 		}
 	}
@@ -315,20 +319,26 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 		streamData := RedisStore.Get(key)
 		//		fmt.Println("ale3")
 		index := searchIndex(message.Value.([]RESP_Parser.RESPValue)[i+offset].Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
-		retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n*" + strconv.Itoa(len(streamData.Value.([]RESP_Parser.RESPValue))-index) + "\r\n"
+		if index+1 <= len(streamData.Value.([]RESP_Parser.RESPValue))-1 {
+			retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n*" + strconv.Itoa(len(streamData.Value.([]RESP_Parser.RESPValue))-(index+1)) + "\r\n"
+		} else {
+			retStr = retStr + "$-1\r\n"
+			continue
+		}
 		//		fmt.Println("ale3")
-		for j := index; j <= len(streamData.Value.([]RESP_Parser.RESPValue))-1; j++ {
+		fmt.Println("index + 1", index+1)
+		for j := index + 1; j <= len(streamData.Value.([]RESP_Parser.RESPValue))-1; j++ {
 			fmt.Println("ale4")
-			fmt.Println(retStr)
+			//			fmt.Println(retStr)
 			//			fmt.Println(RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j])))
 			retStr = retStr + RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j]))
-			//			fmt.Println("ale5")
+			fmt.Println("ale5")
 			//			fmt.Println(retStr)
 			//			fmt.Println("ale6")
 		}
 	}
-	//	fmt.Println("return retStr")
-	//	fmt.Println(retStr)
+	fmt.Println("return retStr")
+	fmt.Println(retStr)
 	return retStr
 
 }

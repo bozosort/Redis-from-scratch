@@ -13,7 +13,7 @@ import (
 )
 
 func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
-	cmd := message.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
+	cmd := strings.ToUpper(message.Value.([]RESP_Parser.RESPValue)[0].Value.(string))
 
 	RedisStore := Store.GetRedisStore()
 	ackCh := GetAckChannelInstance() //Initialize ackCh for Wait command
@@ -117,7 +117,12 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			return "+" + value.Type + "\r\n"
 		}
 	case "XADD":
+		fmt.Println("handleXADD")
+
 		return handleXADD(message, conn, RedisInfo)
+
+	case "XRANGE":
+		return handleXRANGE(message, conn, RedisInfo)
 	}
 	return "Response NA"
 }
@@ -155,9 +160,10 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 	RedisStore := Store.GetRedisStore()
 	streamData := RedisStore.Get(key)
 	IDres, valid := validID(cmdID, streamData)
+
 	if valid {
 		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
-		entry := RESP_Parser.RESPValue{"Array", [2]RESP_Parser.RESPValue{RESP_Parser.RESPValue{"BulkString", IDres}, KVs}}
+		entry := RESP_Parser.RESPValue{"Array", []RESP_Parser.RESPValue{RESP_Parser.RESPValue{"BulkString", IDres}, KVs}}
 
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
@@ -181,7 +187,7 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string
 		comparisonID[1] = 0
 	} else {
 		lastEntry := streamData.Value.([]RESP_Parser.RESPValue)[len(streamData.Value.([]RESP_Parser.RESPValue))-1]
-		lastIDstr := lastEntry.Value.([2]RESP_Parser.RESPValue)[0].Value.(string)
+		lastIDstr := lastEntry.Value.([]RESP_Parser.RESPValue)[0].Value.(string)
 		strsLast := strings.Split(lastIDstr, "-")
 		comparisonID[0], _ = strconv.Atoi(strsLast[0])
 		comparisonID[1], _ = strconv.Atoi(strsLast[1])
@@ -218,4 +224,72 @@ func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string
 	} else {
 		return strconv.Itoa(ID[0]) + "-" + strconv.Itoa(ID[1]), true
 	}
+}
+
+func handleXRANGE(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
+	key := message.Value.([]RESP_Parser.RESPValue)[1]
+	startID := message.Value.([]RESP_Parser.RESPValue)[2]
+	endID := message.Value.([]RESP_Parser.RESPValue)[3]
+
+	RedisStore := Store.GetRedisStore()
+	streamData := RedisStore.Get(key)
+
+	startIndex := searchIndex(startID.Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
+	endIndex := searchIndex(endID.Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
+	fmt.Println("indexserach cmplete", startIndex, endIndex)
+
+	retStr := "*" + strconv.Itoa(endIndex-startIndex+1) + "\r\n"
+	for i := startIndex; i <= endIndex; i++ {
+		retStr = retStr + RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[i]))
+	}
+	fmt.Println(retStr)
+	return retStr
+
+}
+
+func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
+	fmt.Println("searchindex")
+
+	if id == "-" {
+		return 0
+	} else if id == "+" {
+		return len(slice) - 1
+	} else {
+		fmt.Println(slice[len(slice)-1])
+		fmt.Println("searchindex2", len(slice)/2)
+		mid := len(slice) / 2
+		fmt.Println(slice[mid].Value.([]RESP_Parser.RESPValue)[0])
+		cmpr := compareID(id, slice[mid].Value.([]RESP_Parser.RESPValue)[0].Value.(string))
+		fmt.Println("searchindex3")
+		if cmpr == 1 {
+			return len(slice)/2 + searchIndex(id, slice[mid:])
+		} else if cmpr == -1 {
+			return len(slice)/2 - searchIndex(id, slice[:mid])
+		} else {
+			return len(slice) / 2
+		}
+	}
+
+}
+
+func compareID(Id string, sliceId string) int {
+	fmt.Println("compareID")
+
+	strsId := strings.Split(Id, "-")
+	strssliceId := strings.Split(sliceId, "-")
+	if strsId[0] > strssliceId[0] {
+		return 1
+	} else if strsId[0] < strssliceId[0] {
+		return -1
+	}
+
+	if len(strsId) == 2 {
+		if strsId[1] > strssliceId[1] {
+			return 1
+		} else if strsId[1] < strssliceId[1] {
+			return -1
+		}
+	}
+
+	return 0
 }

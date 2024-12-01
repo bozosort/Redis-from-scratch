@@ -96,7 +96,7 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			continue // Skip if no data is received
 		}
 
-		//		fmt.Println("Received data:", string((*buf)[:nbuf]))
+		//fmt.Println("Received data:", string((*buf)[:nbuf]))
 
 		reader := bufio.NewReader(strings.NewReader(string((*buf)[:nbuf])))
 

@@ -247,7 +247,7 @@ func handleXRANGE(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Redis
 }
 
 func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
-	fmt.Println("SearchIndex")
+	//	fmt.Println("SearchIndex")
 	if id == "-" {
 		return 0
 	} else if id == "+" {
@@ -256,16 +256,16 @@ func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 		return 0
 	} else {
 		mid := len(slice) / 2
-		fmt.Println(mid, len(slice))
+		//		fmt.Println(mid, len(slice))
 		cmpr := compareID(id, slice[mid].Value.([]RESP_Parser.RESPValue)[0].Value.(string))
 		if cmpr == 1 {
-			fmt.Println("len(slice)/2 + searchIndex(id, slice[mid:])")
+			//			fmt.Println("len(slice)/2 + searchIndex(id, slice[mid:])")
 			return mid + searchIndex(id, slice[mid:])
 		} else if cmpr == -1 {
-			fmt.Println("len(slice)/2 - searchIndex(id, slice[:mid])")
+			//			fmt.Println("len(slice)/2 - searchIndex(id, slice[:mid])")
 			return mid - searchIndex(id, slice[:mid])
 		} else {
-			fmt.Println("len(slice) / 2", mid)
+			//			fmt.Println("len(slice) / 2", mid)
 			return mid
 		}
 	}
@@ -273,7 +273,7 @@ func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 }
 
 func compareID(Id string, sliceId string) int {
-	fmt.Println("compareID")
+	//	fmt.Println("compareID")
 	strsId := strings.Split(Id, "-")
 	strssliceId := strings.Split(sliceId, "-")
 	if strsId[0] > strssliceId[0] {

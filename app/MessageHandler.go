@@ -117,12 +117,13 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 			return "+" + value.Type + "\r\n"
 		}
 	case "XADD":
-		fmt.Println("handleXADD")
-
 		return handleXADD(message, conn, RedisInfo)
 
 	case "XRANGE":
 		return handleXRANGE(message, conn, RedisInfo)
+
+	case "XREAD":
+		return handleXREAD(message, conn, RedisInfo)
 	}
 	return "Response NA"
 }
@@ -236,37 +237,36 @@ func handleXRANGE(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Redis
 
 	startIndex := searchIndex(startID.Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
 	endIndex := searchIndex(endID.Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
-	fmt.Println("indexserach cmplete", startIndex, endIndex)
 
 	retStr := "*" + strconv.Itoa(endIndex-startIndex+1) + "\r\n"
 	for i := startIndex; i <= endIndex; i++ {
 		retStr = retStr + RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[i]))
 	}
-	fmt.Println(retStr)
 	return retStr
 
 }
 
 func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
-	fmt.Println("searchindex")
-
+	fmt.Println("SearchIndex")
 	if id == "-" {
 		return 0
 	} else if id == "+" {
 		return len(slice) - 1
+	} else if len(slice) == 1 {
+		return 0
 	} else {
-		fmt.Println(slice[len(slice)-1])
-		fmt.Println("searchindex2", len(slice)/2)
 		mid := len(slice) / 2
-		fmt.Println(slice[mid].Value.([]RESP_Parser.RESPValue)[0])
+		fmt.Println(mid, len(slice))
 		cmpr := compareID(id, slice[mid].Value.([]RESP_Parser.RESPValue)[0].Value.(string))
-		fmt.Println("searchindex3")
 		if cmpr == 1 {
-			return len(slice)/2 + searchIndex(id, slice[mid:])
+			fmt.Println("len(slice)/2 + searchIndex(id, slice[mid:])")
+			return mid + searchIndex(id, slice[mid:])
 		} else if cmpr == -1 {
-			return len(slice)/2 - searchIndex(id, slice[:mid])
+			fmt.Println("len(slice)/2 - searchIndex(id, slice[:mid])")
+			return mid - searchIndex(id, slice[:mid])
 		} else {
-			return len(slice) / 2
+			fmt.Println("len(slice) / 2", mid)
+			return mid
 		}
 	}
 
@@ -274,7 +274,6 @@ func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 
 func compareID(Id string, sliceId string) int {
 	fmt.Println("compareID")
-
 	strsId := strings.Split(Id, "-")
 	strssliceId := strings.Split(sliceId, "-")
 	if strsId[0] > strssliceId[0] {
@@ -292,4 +291,43 @@ func compareID(Id string, sliceId string) int {
 	}
 
 	return 0
+}
+
+func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
+	arg := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
+	var cmdIndex int
+	if arg == "block" {
+		//timeout := message.Value.([]RESP_Parser.RESPValue)[2].Value.(string)
+		cmdIndex = 4
+	} else {
+		cmdIndex = 2
+	}
+	fmt.Println("ale1")
+	RedisStore := Store.GetRedisStore()
+	length := len(message.Value.([]RESP_Parser.RESPValue))
+	offset := (length - cmdIndex + 1) / 2
+	retStr := "*" + strconv.Itoa(offset) + "\r\n"
+	for i := cmdIndex; i < cmdIndex+offset; i++ {
+		fmt.Println("ale2")
+		key := message.Value.([]RESP_Parser.RESPValue)[i]
+		//retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n"
+		streamData := RedisStore.Get(key)
+		fmt.Println("ale3")
+		index := searchIndex(message.Value.([]RESP_Parser.RESPValue)[i+offset].Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
+		retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n*" + strconv.Itoa(len(streamData.Value.([]RESP_Parser.RESPValue))-index) + "\r\n"
+		fmt.Println("ale3")
+		for j := index; j <= len(streamData.Value.([]RESP_Parser.RESPValue))-1; j++ {
+			fmt.Println("ale4")
+			fmt.Println(retStr)
+			//			fmt.Println(RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j])))
+			retStr = retStr + RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j]))
+			fmt.Println("ale5")
+			fmt.Println(retStr)
+			fmt.Println("ale6")
+		}
+	}
+	fmt.Println("return retStr")
+	fmt.Println(retStr)
+	return retStr
+
 }

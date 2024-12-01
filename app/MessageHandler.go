@@ -303,32 +303,32 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 	} else {
 		cmdIndex = 2
 	}
-	fmt.Println("ale1")
+	//	fmt.Println("ale1")
 	RedisStore := Store.GetRedisStore()
 	length := len(message.Value.([]RESP_Parser.RESPValue))
 	offset := (length - cmdIndex + 1) / 2
 	retStr := "*" + strconv.Itoa(offset) + "\r\n"
 	for i := cmdIndex; i < cmdIndex+offset; i++ {
-		fmt.Println("ale2")
+		//		fmt.Println("ale2")
 		key := message.Value.([]RESP_Parser.RESPValue)[i]
 		//retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n"
 		streamData := RedisStore.Get(key)
-		fmt.Println("ale3")
+		//		fmt.Println("ale3")
 		index := searchIndex(message.Value.([]RESP_Parser.RESPValue)[i+offset].Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
 		retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n*" + strconv.Itoa(len(streamData.Value.([]RESP_Parser.RESPValue))-index) + "\r\n"
-		fmt.Println("ale3")
+		//		fmt.Println("ale3")
 		for j := index; j <= len(streamData.Value.([]RESP_Parser.RESPValue))-1; j++ {
 			fmt.Println("ale4")
 			fmt.Println(retStr)
 			//			fmt.Println(RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j])))
 			retStr = retStr + RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j]))
-			fmt.Println("ale5")
-			fmt.Println(retStr)
-			fmt.Println("ale6")
+			//			fmt.Println("ale5")
+			//			fmt.Println(retStr)
+			//			fmt.Println("ale6")
 		}
 	}
-	fmt.Println("return retStr")
-	fmt.Println(retStr)
+	//	fmt.Println("return retStr")
+	//	fmt.Println(retStr)
 	return retStr
 
 }

@@ -297,7 +297,8 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 	arg := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 	var cmdIndex int
 	if arg == "block" {
-		//timeout := message.Value.([]RESP_Parser.RESPValue)[2].Value.(string)
+		timeout, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[2].Value.(string))
+		time.Sleep(time.Duration(timeout) * time.Millisecond)
 		cmdIndex = 4
 	} else {
 		cmdIndex = 2

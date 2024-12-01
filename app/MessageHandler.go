@@ -168,13 +168,9 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
-			addCh := GetAckChannelInstance()
-			addCh <- struct{}{}
 			return "$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"
 		} else {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
-			addCh := GetAckChannelInstance()
-			addCh <- struct{}{}
 			return "$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"
 		}
 
@@ -306,14 +302,6 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 	var cmdIndex int
 	if arg == "block" {
 		timeout, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[2].Value.(string))
-		if timeout == 0 {
-			for {
-				select {
-				case <-addCh:
-					break
-				}
-			}
-		}
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 		cmdIndex = 4
 	} else {

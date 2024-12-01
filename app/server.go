@@ -28,15 +28,23 @@ type RedisInfo struct {
 }
 
 var (
-	ch   chan struct{}
-	once sync.Once
+	ackCh chan struct{}
+	addCh chan struct{}
+	once  sync.Once
 )
 
 func GetAckChannelInstance() chan struct{} {
 	once.Do(func() {
-		ch = make(chan struct{})
+		ackCh = make(chan struct{})
 	})
-	return ch
+	return ackCh
+}
+
+func GetAddChannelInstance() chan struct{} {
+	once.Do(func() {
+		addCh = make(chan struct{})
+	})
+	return addCh
 }
 
 func main() {

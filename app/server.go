@@ -40,12 +40,26 @@ func GetAckChannelInstance() chan struct{} {
 	return ackCh
 }
 
+type XRead_lock struct {
+	//	mu           sync.Mutex
+	XRead_active bool // Flag to track if new data has arrived
+	mu           sync.Mutex
+	cond         *sync.Cond
+}
+
 func GetAddChannelInstance() chan struct{} {
 	once.Do(func() {
 		addCh = make(chan struct{})
 	})
 	return addCh
 }
+
+/*func GetXREAD_lock() *XRead_lock {
+	once.Do(func() {
+		xrl = XRead_lock{XRead_active: false}
+	})
+	return &xrl
+}*/
 
 func main() {
 	fmt.Println("Logs from your program will appear here!")
@@ -81,7 +95,7 @@ func main() {
 			os.Exit(1)
 		}
 		buf := make([]byte, 1024)
-		go handleConnection(&buf, conn, &RedisInfo)
+		handleConnection(&buf, conn, &RedisInfo)
 
 	}
 }
@@ -91,6 +105,11 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 
 	multiMode := false
 	transactionQueue := &Queue{}
+
+	xrlock := XRead_lock{
+		XRead_active: false,
+	}
+	xrlock.cond = sync.NewCond(&xrlock.mu)
 	for {
 		nbuf, err := conn.Read(*buf)
 		if err != nil {
@@ -125,6 +144,12 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			}
 
 			switch message.Value.([]RESP_Parser.RESPValue)[0].Value.(string) {
+			case "xread":
+				go handleXREAD(*message, conn, RedisInfo, &xrlock)
+
+			case "xadd":
+				go handleXADD(*message, conn, RedisInfo, &xrlock)
+
 			case "MULTI":
 				multiMode = true
 				conn.Write([]byte("+OK\r\n"))

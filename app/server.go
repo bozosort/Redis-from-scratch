@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -28,16 +29,19 @@ type RedisInfo struct {
 }
 
 var (
-	ackCh chan struct{}
-	addCh chan struct{}
-	once  sync.Once
+	AckCh   chan struct{}
+	xrl     XRead_lock
+	Ackonce sync.Once
+	once    sync.Once
 )
 
 func GetAckChannelInstance() chan struct{} {
-	once.Do(func() {
-		ackCh = make(chan struct{})
+	Ackonce.Do(func() {
+		AckCh = make(chan struct{})
+		fmt.Println("First AckCh", AckCh)
 	})
-	return ackCh
+	fmt.Println("AckCh", AckCh)
+	return AckCh
 }
 
 type XRead_lock struct {
@@ -47,21 +51,17 @@ type XRead_lock struct {
 	cond         *sync.Cond
 }
 
-func GetAddChannelInstance() chan struct{} {
-	once.Do(func() {
-		addCh = make(chan struct{})
-	})
-	return addCh
-}
-
-/*func GetXREAD_lock() *XRead_lock {
+func GetXREAD_lock() *XRead_lock {
 	once.Do(func() {
 		xrl = XRead_lock{XRead_active: false}
+		xrl.cond = sync.NewCond(&xrl.mu)
 	})
 	return &xrl
-}*/
+}
 
 func main() {
+
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	fmt.Println("Logs from your program will appear here!")
 
 	portPtr := flag.Int("port", 6379, "an int")
@@ -95,21 +95,20 @@ func main() {
 			os.Exit(1)
 		}
 		buf := make([]byte, 1024)
-		handleConnection(&buf, conn, &RedisInfo)
+		//		log.Println("Connection accepted", conn)
+		go handleConnection(&buf, conn, &RedisInfo)
 
 	}
 }
 
 func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	defer conn.Close()
+	defer log.Println("Conn terminated")
 
 	multiMode := false
 	transactionQueue := &Queue{}
 
-	xrlock := XRead_lock{
-		XRead_active: false,
-	}
-	xrlock.cond = sync.NewCond(&xrlock.mu)
+	xrlock := GetXREAD_lock()
 	for {
 		nbuf, err := conn.Read(*buf)
 		if err != nil {
@@ -123,32 +122,27 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			continue // Skip if no data is received
 		}
 
-		//fmt.Println("Received data:", string((*buf)[:nbuf]))
-
 		reader := bufio.NewReader(strings.NewReader(string((*buf)[:nbuf])))
-
 		processed := 0
+
 		for processed < nbuf {
 			message, n, err := RESP_Parser.DeserializeRESP(reader)
 			if err != nil {
 				fmt.Println("Error parsing RESP1:", err)
-				//				fmt.Println((*buf)[:nbuf])
-				//				fmt.Println(string((*buf)[:nbuf]))
 				break
 			}
 			processed += n
-			//		fmt.Println("Processed:", processed, "of", nbuf)
 
 			if message.Type != "Array" {
 				continue
 			}
 
 			switch message.Value.([]RESP_Parser.RESPValue)[0].Value.(string) {
-			case "xread":
-				go handleXREAD(*message, conn, RedisInfo, &xrlock)
+			case "xread", "XREAD":
+				go handleXREAD(*message, conn, RedisInfo, xrlock)
 
-			case "xadd":
-				go handleXADD(*message, conn, RedisInfo, &xrlock)
+			case "xadd", "XADD":
+				go handleXADD(*message, conn, RedisInfo, xrlock)
 
 			case "MULTI":
 				multiMode = true

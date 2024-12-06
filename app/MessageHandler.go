@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -13,53 +14,11 @@ import (
 )
 
 func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
-	/*	func() {
-			addChan := GetAddChannelInstance()
-			fmt.Println("func 1")
-			addChan.mu.Lock()
-			if addChan.XRead_active {
-				fmt.Println("locked func 1")
-				go func() {
-					fmt.Println("addChan.Channel <- struct{}{}1.1")
-					addChan.Channel <- struct{}{}
-					fmt.Println("addChan.Channel <- struct{}{}1.2")
-				}()
-			}
-			addChan.mu.Unlock()
-		}()
-		go func() {
-			addChan := GetAddChannelInstance()
-			fmt.Println("func 2")
-			addChan.mu.Lock()
-			addChan.XRead_active = true
-			fmt.Println("locked func 2")
-			addChan.mu.Unlock()
-			fmt.Println("addCh triggered", <-addChan.Channel)
-			addChan.mu.Lock()
-			addChan.XRead_active = false
-			addChan.mu.Unlock()
+	defer log.Println("MessageHandler end")
 
-		}()
-		//	time.Sleep(1 * time.Second)
-
-		func() {
-			addChan := GetAddChannelInstance()
-			fmt.Println("func 3")
-			addChan.mu.Lock()
-			if addChan.XRead_active {
-				fmt.Println("locked func 3")
-				go func() {
-					fmt.Println("addChan.Channel <- struct{}{}3.1")
-					addChan.Channel <- struct{}{}
-					fmt.Println("addChan.Channel <- struct{}{}3.2")
-				}()
-			}
-			addChan.mu.Unlock()
-		}()*/
 	cmd := strings.ToUpper(message.Value.([]RESP_Parser.RESPValue)[0].Value.(string))
 
 	RedisStore := Store.GetRedisStore()
-	ackCh := GetAckChannelInstance() //Initialize ackCh for Wait command
 
 	switch cmd {
 	case "PING":
@@ -121,10 +80,14 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		acknowledged := 0
 		numReplicas, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[1].Value.(string))
 		timeoutCh := time.After(time.Duration(timeout) * time.Millisecond)
+		log.Println("Before For loop", conn)
+		ackCh := GetAckChannelInstance() //Initialize ackCh for Wait command
+		log.Println("ackCh address", ackCh)
 		for {
 			select {
 			case <-ackCh:
 				acknowledged++
+				fmt.Println("ackCh triggered")
 				if acknowledged >= numReplicas {
 					fmt.Println("ackCh success")
 					RedisInfo.wait_write_counter = 0
@@ -174,13 +137,15 @@ func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 }
 
 func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
+	defer log.Println("handleREPLCONF end")
 	switch message.Value.([]RESP_Parser.RESPValue)[1].Value {
 	case "ACK":
-		//		fmt.Println("Before trigerring ackCh")
 		ackCh := GetAckChannelInstance()
+		log.Println("Before trigerring ackCh", conn)
+		log.Println("ackCh address", ackCh)
 		ackCh <- struct{}{}
+		log.Println("After trigerring ackCh")
 		return "Response NA"
-		//		fmt.Println("After trigerring ackCh")
 	case "listening-port":
 		RedisInfo.conns = append(RedisInfo.conns, conn)
 		return "+OK\r\n"
@@ -193,7 +158,7 @@ func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 }
 
 func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo, xrlock *XRead_lock) {
-	defer fmt.Println("xadd terminates")
+	defer log.Println("xadd terminates")
 	key := message.Value.([]RESP_Parser.RESPValue)[1]
 	cmdID := message.Value.([]RESP_Parser.RESPValue)[2]
 
@@ -205,26 +170,19 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
 		entry := RESP_Parser.RESPValue{"Array", []RESP_Parser.RESPValue{RESP_Parser.RESPValue{"BulkString", IDres}, KVs}}
 
-		//		xrlock := GetXREAD_lock()
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
 			fmt.Println("First Xadd start")
 			xrlock.mu.Lock()
-			fmt.Println("addChan.Channel <- struct{}{}1")
-			//				addChan := GetAddChannelInstance()
-			//				addChan <- struct{}{}
 			xrlock.cond.Signal()
-			fmt.Println("addChan.Channel <- struct{}{}2")
 			xrlock.mu.Unlock()
-			fmt.Println("First Xadd end")
+			log.Println("First Xadd end")
 			conn.Write([]byte("$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"))
 		} else {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
 			time.Sleep(1 * time.Second)
 			xrlock.mu.Lock()
 			fmt.Println("before trigger3")
-			// addChan := GetAddChannelInstance()
-			// addChan <- struct{}{}
 			xrlock.cond.Signal()
 			fmt.Println("after trigger")
 			xrlock.mu.Unlock()
@@ -238,7 +196,7 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 }
 
 func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string, bool) {
-
+	fmt.Println("validID func start")
 	var comparisonID [2]int
 	if streamData.Value == nil {
 		//Since no value is set for stream, comparisonID is set to "identity" value
@@ -361,15 +319,29 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 	var cmdIndex int
 	if arg == "block" {
 		cmdIndex = 4
-		//		timeout, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[2].Value.(string))
-		//		timeCh := time.After(time.Duration(timeout) * time.Millisecond)
-		//		addChan := GetAddChannelInstance()
-		xrlock.mu.Lock()
-		fmt.Println("active")
-		//		fmt.Println("addCh triggered", <-addChan)
-		xrlock.cond.Wait()
-		xrlock.mu.Unlock()
-		fmt.Println("Inactive")
+		timeout, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[2].Value.(string))
+		timeCh := time.After(time.Duration(timeout) * time.Millisecond)
+		if timeout == 0 {
+			timeCh = nil
+		}
+		xaddch := make(chan struct{})
+		go func() {
+			xrlock.mu.Lock()
+			log.Println("active")
+			xrlock.cond.Wait()
+			xrlock.mu.Unlock()
+			xaddch <- struct{}{}
+			log.Println("Inactive", xaddch)
+		}()
+	outer:
+		for {
+			select {
+			case <-xaddch:
+				break outer
+			case <-timeCh:
+				break outer
+			}
+		}
 	} else {
 		cmdIndex = 2
 	}

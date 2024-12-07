@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -338,8 +337,6 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 		key := message.Value.([]RESP_Parser.RESPValue)[i]
 		streamData := RedisStore.Get(key)
 		index := searchIndex(message.Value.([]RESP_Parser.RESPValue)[i+offset].Value.(string), streamData.Value.([]RESP_Parser.RESPValue))
-		fmt.Println("key:", message.Value.([]RESP_Parser.RESPValue)[i+offset].Value.(string))
-		fmt.Println("index:", index)
 		if index+1 <= len(streamData.Value.([]RESP_Parser.RESPValue))-1 {
 			retStr = retStr + "*2\r\n$" + strconv.Itoa(len(key.Value.(string))) + "\r\n" + key.Value.(string) + "\r\n*" + strconv.Itoa(len(streamData.Value.([]RESP_Parser.RESPValue))-(index+1)) + "\r\n"
 		} else {

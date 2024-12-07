@@ -146,7 +146,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 						multiMode = false
 					} else {
 						var resArr []string
-						fmt.Println("tq length", transactionQueue.length())
 						tqLen := transactionQueue.length()
 						for i := 0; i < tqLen; i++ {
 							msg, err := transactionQueue.Dequeue()
@@ -186,7 +185,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 					if response != "Response NA" {
 						fmt.Println("response", response)
 						conn.Write([]byte(response))
-						fmt.Println("response")
 					}
 				}
 

@@ -253,7 +253,7 @@ func handleXRANGE(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Redis
 func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 	if id == "-" {
 		return 0
-	} else if id == "+" {
+	} else if id == "+" || id == "$" {
 		return len(slice) - 1
 	} else if len(slice) == 1 {
 		return -1 // If not found,send the previous index

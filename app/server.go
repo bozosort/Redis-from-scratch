@@ -51,9 +51,7 @@ func GetAckChannelInstance() chan struct{} {
 func GetXReadChannelInstance() *XRead_lock {
 	Readonce.Do(func() {
 		xrl = XRead_lock{XRead_Active: false, ReadCh: make(chan struct{})}
-		fmt.Println("asd", xrl.ReadCh)
 	})
-	fmt.Println("efg", xrl.ReadCh)
 	return &xrl
 }
 

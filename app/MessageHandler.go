@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -14,8 +12,6 @@ import (
 )
 
 func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
-	defer log.Println("MessageHandler end")
-
 	cmd := strings.ToUpper(message.Value.([]RESP_Parser.RESPValue)[0].Value.(string))
 
 	RedisStore := Store.GetRedisStore()
@@ -80,21 +76,16 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 		acknowledged := 0
 		numReplicas, _ := strconv.Atoi(message.Value.([]RESP_Parser.RESPValue)[1].Value.(string))
 		timeoutCh := time.After(time.Duration(timeout) * time.Millisecond)
-		log.Println("Before For loop", conn)
 		ackCh := GetAckChannelInstance() //Initialize ackCh for Wait command
-		log.Println("ackCh address", ackCh)
 		for {
 			select {
 			case <-ackCh:
 				acknowledged++
-				fmt.Println("ackCh triggered")
 				if acknowledged >= numReplicas {
-					fmt.Println("ackCh success")
 					RedisInfo.wait_write_counter = 0
 					return ":" + strconv.Itoa(acknowledged) + "\r\n"
 				}
 			case <-timeoutCh:
-				fmt.Println("Trigerred timeoutCh")
 				RedisInfo.wait_write_counter = 0
 				return ":" + strconv.Itoa(acknowledged) + "\r\n"
 			}
@@ -106,8 +97,6 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 
 		if RedisInfo.replicaof == "none" {
 			propogate(message, RedisInfo)
-			fmt.Println("INCR Master:", RESP_Parser.SerializeRESP(newVal))
-
 			return RESP_Parser.SerializeRESP(newVal)
 		}
 		return "Response NA"
@@ -144,14 +133,10 @@ func propogate(message RESP_Parser.RESPValue, RedisInfo *RedisInfo) {
 }
 
 func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) string {
-	defer log.Println("handleREPLCONF end")
 	switch message.Value.([]RESP_Parser.RESPValue)[1].Value {
 	case "ACK":
 		ackCh := GetAckChannelInstance()
-		log.Println("Before trigerring ackCh", conn)
-		log.Println("ackCh address", ackCh)
 		ackCh <- struct{}{}
-		log.Println("After trigerring ackCh")
 		return "Response NA"
 	case "listening-port":
 		RedisInfo.conns = append(RedisInfo.conns, conn)
@@ -165,7 +150,6 @@ func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 }
 
 func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
-	defer log.Println("xadd terminates")
 	key := message.Value.([]RESP_Parser.RESPValue)[1]
 	cmdID := message.Value.([]RESP_Parser.RESPValue)[2]
 
@@ -179,26 +163,19 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 		xrlock := GetXReadChannelInstance()
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
-			fmt.Println("First Xadd start")
 			xrlock.mu.Lock()
 			if xrlock.XRead_Active == true {
-				fmt.Println("before trigger3")
 				xrlock.ReadCh <- struct{}{}
-				fmt.Println("after trigger3")
 			}
 			xrlock.mu.Unlock()
-			log.Println("First Xadd end")
 			conn.Write([]byte("$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"))
 		} else {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
 			xrlock.mu.Lock()
 			if xrlock.XRead_Active == true {
-				fmt.Println("before trigger3")
 				xrlock.ReadCh <- struct{}{}
-				fmt.Println("after trigger3")
 			}
 			xrlock.mu.Unlock()
-			fmt.Println("Second Xadd end")
 			conn.Write([]byte("$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"))
 		}
 
@@ -208,7 +185,6 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 }
 
 func validID(id RESP_Parser.RESPValue, streamData RESP_Parser.RESPValue) (string, bool) {
-	fmt.Println("validID func start")
 	var comparisonID [2]int
 	if streamData.Value == nil {
 		//Since no value is set for stream, comparisonID is set to "identity" value
@@ -275,7 +251,6 @@ func handleXRANGE(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Redis
 }
 
 func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
-	//	fmt.Println("SearchIndex")
 	if id == "-" {
 		return 0
 	} else if id == "+" {
@@ -284,20 +259,16 @@ func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 		return -1 // If not found,send the previous index
 	} else {
 		mid := len(slice) / 2
-		//		fmt.Println(mid, len(slice))
 		cmpr := compareID(id, slice[mid].Value.([]RESP_Parser.RESPValue)[0].Value.(string))
 		if cmpr == 1 {
-			fmt.Println("mid + searchIndex(id, slice[mid:])", mid+searchIndex(id, slice[mid:]))
 			return mid + searchIndex(id, slice[mid:])
 		} else if cmpr == -1 {
-			fmt.Println("mid - searchIndex(id, slice[:mid])", mid-searchIndex(id, slice[:mid]))
 			ret := searchIndex(id, slice[:mid])
 			if ret == -1 {
 				return mid - 1
 			}
 			return mid - searchIndex(id, slice[:mid])
 		} else {
-			fmt.Println("mid", mid)
 			return mid
 		}
 	}
@@ -305,7 +276,6 @@ func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 }
 
 func compareID(Id string, sliceId string) int {
-	//	fmt.Println("compareID")
 	strsId := strings.Split(Id, "-")
 	strssliceId := strings.Split(sliceId, "-")
 	if strsId[0] > strssliceId[0] {
@@ -326,7 +296,6 @@ func compareID(Id string, sliceId string) int {
 }
 
 func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
-	defer fmt.Println("xread terminates")
 	arg := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 	var cmdIndex int
 	if arg == "block" {
@@ -338,13 +307,10 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 		}
 		xrlock := GetXReadChannelInstance()
 		xrlock.mu.Lock()
-		log.Println("active")
 		xrlock.XRead_Active = true
 		xrlock.mu.Unlock()
-		log.Println("Inactive, channel:", (*xrlock).ReadCh)
 	outer:
 		for {
-			log.Println("reading")
 			select {
 			case <-xrlock.ReadCh:
 				xrlock.XRead_Active = false
@@ -371,14 +337,10 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 			retStr = retStr + "$-1\r\n"
 			continue
 		}
-		fmt.Println("index + 1", index+1)
 		for j := index + 1; j <= len(streamData.Value.([]RESP_Parser.RESPValue))-1; j++ {
 			retStr = retStr + RESP_Parser.SerializeRESP((streamData.Value.([]RESP_Parser.RESPValue)[j]))
 		}
 	}
-	fmt.Println("return retStr")
 	conn.Write([]byte(retStr))
-	fmt.Println(retStr)
-	//	return "Response NA"
 
 }

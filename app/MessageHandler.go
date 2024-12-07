@@ -344,6 +344,7 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 		log.Println("Inactive")
 	outer:
 		for {
+			log.Println("reading")
 			select {
 			case <-xrl.ReadCh:
 				xrlock.XRead_Active = false

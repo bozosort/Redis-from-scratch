@@ -341,12 +341,12 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 		log.Println("active")
 		xrlock.XRead_Active = true
 		xrlock.mu.Unlock()
-		log.Println("Inactive")
+		log.Println("Inactive, channel:", xrlock.ReadCh)
 	outer:
 		for {
 			log.Println("reading")
 			select {
-			case <-xrl.ReadCh:
+			case <-xrlock.ReadCh:
 				xrlock.XRead_Active = false
 				break outer
 			case <-timeCh:

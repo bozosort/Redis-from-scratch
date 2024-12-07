@@ -29,32 +29,28 @@ type RedisInfo struct {
 }
 
 var (
-	AckCh   chan struct{}
-	xrl     XRead_lock
-	Ackonce sync.Once
-	once    sync.Once
+	AckCh    chan struct{}
+	xrl      XRead_lock
+	Ackonce  sync.Once
+	Readonce sync.Once
 )
+
+type XRead_lock struct {
+	XRead_Active bool
+	ReadCh       chan struct{}
+	mu           sync.Mutex
+}
 
 func GetAckChannelInstance() chan struct{} {
 	Ackonce.Do(func() {
 		AckCh = make(chan struct{})
-		fmt.Println("First AckCh", AckCh)
 	})
-	fmt.Println("AckCh", AckCh)
 	return AckCh
 }
 
-type XRead_lock struct {
-	//	mu           sync.Mutex
-	XRead_active bool // Flag to track if new data has arrived
-	mu           sync.Mutex
-	cond         *sync.Cond
-}
-
-func GetXREAD_lock() *XRead_lock {
-	once.Do(func() {
-		xrl = XRead_lock{XRead_active: false}
-		xrl.cond = sync.NewCond(&xrl.mu)
+func GetXReadChannelInstance() *XRead_lock {
+	Readonce.Do(func() {
+		xrl = XRead_lock{XRead_Active: false}
 	})
 	return &xrl
 }
@@ -108,7 +104,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 	multiMode := false
 	transactionQueue := &Queue{}
 
-	xrlock := GetXREAD_lock()
 	for {
 		nbuf, err := conn.Read(*buf)
 		if err != nil {
@@ -138,12 +133,6 @@ func handleConnection(buf *[]byte, conn net.Conn, RedisInfo *RedisInfo) {
 			}
 
 			switch message.Value.([]RESP_Parser.RESPValue)[0].Value.(string) {
-			case "xread", "XREAD":
-				go handleXREAD(*message, conn, RedisInfo, xrlock)
-
-			case "xadd", "XADD":
-				go handleXADD(*message, conn, RedisInfo, xrlock)
-
 			case "MULTI":
 				multiMode = true
 				conn.Write([]byte("+OK\r\n"))

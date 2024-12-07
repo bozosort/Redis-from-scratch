@@ -125,6 +125,13 @@ func MessageHandler(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 
 	case "XRANGE":
 		return handleXRANGE(message, conn, RedisInfo)
+
+	case "XREAD":
+		go handleXREAD(message, conn, RedisInfo)
+
+	case "XADD":
+		go handleXADD(message, conn, RedisInfo)
+
 	}
 	return "Response NA"
 }
@@ -157,7 +164,7 @@ func handleREPLCONF(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Red
 	return "Response NA"
 }
 
-func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo, xrlock *XRead_lock) {
+func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
 	defer log.Println("xadd terminates")
 	key := message.Value.([]RESP_Parser.RESPValue)[1]
 	cmdID := message.Value.([]RESP_Parser.RESPValue)[2]
@@ -169,22 +176,27 @@ func handleXADD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisIn
 	if valid {
 		KVs := RESP_Parser.RESPValue{"Array", message.Value.([]RESP_Parser.RESPValue)[3:]}
 		entry := RESP_Parser.RESPValue{"Array", []RESP_Parser.RESPValue{RESP_Parser.RESPValue{"BulkString", IDres}, KVs}}
-
+		xrlock := GetXReadChannelInstance()
 		if streamData.Value == nil {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", []RESP_Parser.RESPValue{entry}}, -1)
 			fmt.Println("First Xadd start")
 			xrlock.mu.Lock()
-			xrlock.cond.Signal()
+			if xrlock.XRead_Active == true {
+				fmt.Println("before trigger3")
+				xrlock.ReadCh <- struct{}{}
+				fmt.Println("after trigger3")
+			}
 			xrlock.mu.Unlock()
 			log.Println("First Xadd end")
 			conn.Write([]byte("$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"))
 		} else {
 			RedisStore.Set(key, RESP_Parser.RESPValue{"stream", append(streamData.Value.([]RESP_Parser.RESPValue), entry)}, -1)
-			time.Sleep(1 * time.Second)
 			xrlock.mu.Lock()
-			fmt.Println("before trigger3")
-			xrlock.cond.Signal()
-			fmt.Println("after trigger")
+			if xrlock.XRead_Active == true {
+				fmt.Println("before trigger3")
+				xrlock.ReadCh <- struct{}{}
+				fmt.Println("after trigger3")
+			}
 			xrlock.mu.Unlock()
 			fmt.Println("Second Xadd end")
 			conn.Write([]byte("$" + strconv.Itoa(len(IDres)) + "\r\n" + IDres + "\r\n"))
@@ -313,7 +325,7 @@ func compareID(Id string, sliceId string) int {
 	return 0
 }
 
-func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo, xrlock *XRead_lock) {
+func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
 	defer fmt.Println("xread terminates")
 	arg := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
 	var cmdIndex int
@@ -324,21 +336,20 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 		if timeout == 0 {
 			timeCh = nil
 		}
-		xaddch := make(chan struct{})
-		go func() {
-			xrlock.mu.Lock()
-			log.Println("active")
-			xrlock.cond.Wait()
-			xrlock.mu.Unlock()
-			xaddch <- struct{}{}
-			log.Println("Inactive", xaddch)
-		}()
+		xrlock := GetXReadChannelInstance()
+		xrlock.mu.Lock()
+		log.Println("active")
+		xrlock.XRead_Active = true
+		xrlock.mu.Unlock()
+		log.Println("Inactive")
 	outer:
 		for {
 			select {
-			case <-xaddch:
+			case <-xrl.ReadCh:
+				xrlock.XRead_Active = false
 				break outer
 			case <-timeCh:
+				xrlock.XRead_Active = false
 				break outer
 			}
 		}

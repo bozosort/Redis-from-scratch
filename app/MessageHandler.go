@@ -254,7 +254,7 @@ func handleXRANGE(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *Redis
 func searchIndex(id string, slice []RESP_Parser.RESPValue) int {
 	if id == "-" {
 		return 0
-	} else if id == "+" || id == "$" {
+	} else if id == "+" {
 		return len(slice) - 1
 	} else if len(slice) == 1 {
 		return -1 // If not found,send the previous index
@@ -298,6 +298,13 @@ func compareID(Id string, sliceId string) int {
 
 func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisInfo) {
 	arg := message.Value.([]RESP_Parser.RESPValue)[1].Value.(string)
+	RedisStore := Store.GetRedisStore()
+	for i := 4; i < len(message.Value.([]RESP_Parser.RESPValue)); i++ {
+		if message.Value.([]RESP_Parser.RESPValue)[i].Value.(string) == "$" {
+			arr := RedisStore.Get(message.Value.([]RESP_Parser.RESPValue)[i-1]).Value.([]RESP_Parser.RESPValue)
+			message.Value.([]RESP_Parser.RESPValue)[i].Value = arr[len(arr)-1].Value.([]RESP_Parser.RESPValue)[0].Value.(string)
+		}
+	}
 	var cmdIndex int
 	if arg == "block" {
 		cmdIndex = 4
@@ -324,7 +331,6 @@ func handleXREAD(message RESP_Parser.RESPValue, conn net.Conn, RedisInfo *RedisI
 	} else {
 		cmdIndex = 2
 	}
-	RedisStore := Store.GetRedisStore()
 	length := len(message.Value.([]RESP_Parser.RESPValue))
 	offset := (length - cmdIndex + 1) / 2
 	retStr := "*" + strconv.Itoa(offset) + "\r\n"
